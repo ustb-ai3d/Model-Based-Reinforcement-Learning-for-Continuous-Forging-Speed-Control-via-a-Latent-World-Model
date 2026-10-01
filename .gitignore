@@ -22,6 +22,7 @@
 *.toc
 *.vrb
 *.xdv
+/main.pdf
 
 # 以下文件与论文内容无关，仅保留在本地，不参与 git 跟踪与 Overleaf 同步
 SKILL.md
