@@ -21,13 +21,17 @@ forging operations, capable of rapidly generating a complete speed
 profile based on the initial temperature field of the workpiece. In line
 with previous work \cite{lin2011critical}, the speed profile is defined
 by a constant-acceleration-constant pattern and parameterized using a
-smooth four-parameter function. Its mathematical expression is given by:
+smooth four-parameter function.
+% 【CITE 待校正：本参数化应出自 Bambach 等，Towards Damage Controlled Hot Forming，Applied Mechanics and Materials，885: 56--63，2018；后续替换或补充此处引用】
+Its mathematical expression is given by:
 \begin{equation}
 v_{y}(t)=\begin{cases}
 v_{0}, & t<t_{0} \\
-v_{0}+\left(v_{1}-v_{0}\right)\xi^{3}\left(10-15\xi+6\xi^{2}\right), & t\geq t_{0}
+v_{0}+\left(v_{1}-v_{0}\right)\xi^{3}\left(10-15\xi+6\xi^{2}\right), & t_{0}\leq t\leq t_{1} \\
+v_{1}, & t>t_{1}
 \end{cases}
 \end{equation}
+% 【CITE 待补：本式改编自 Bambach 等 2018】
 where $\xi=(t-t_0)/(t_1-t_0)$. The decision variables are
 $\theta=\{v_0, v_1, t_0, t_1\}$, denoting the initial speed, target
 speed, and the start and end times of the acceleration phase,

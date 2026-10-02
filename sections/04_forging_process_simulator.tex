@@ -1,71 +1,99 @@
-\section{Forging Process Simulator}
-% 本研究构建了一个基于深度算子网络（DeepONet）的代理模型，用于在给定锻压参数下同步预测位移场、应力场和损伤场的时空演化。该模型学习由控制量与扰动决定的物理场预测算子，实现多场耦合与全时域一体化建模。
+\section{Point-Cloud World Model}
+\label{sec:world_model}
 
-% 锻造过程被表述为依赖于初始温度场和工艺参数的演化问题。模型输入包括工艺参数（分支网络处理的速度曲线参数 $\theta = \{v_0, v_1, t_0, t_1\}）$和时空信息（主干网络处理的空间坐标$ (x, y, z)、SDF、时间步step 和初始温度 Temp）$。基于算子学习框架，模型具备全时域预测能力，一次前向传播即可直接输出对应时间步 step 的物理状态，结构如图\ref{fig:model}所示。
-% \begin{figure}[htbp]
-% \centerline{\includegraphics[width=\linewidth]{model.pdf}}
-% \caption{Field value prediction model.}
-% \label{fig:model}
-% \end{figure}
+锻造变形序列的几何与多物理场随变形历程连续演化。为以单一隐状态联合承载几何与温度、等效应力、损伤等信息，并支持连续时间的自回归推演，本文构建“编码器—推理器—解码器”（Encoder--Inferencer--Decoder）框架的点云世界模型：编码器 $E$ 将第 $k$ 步点云 $X_k$ 映射为隐状态 $c_k=E(X_k)\in\mathbb{R}^{d}$，作为该时刻锻件（几何与多物理场）的紧凑快照；推理器 $g$ 以锻压速度曲线为条件，在增广空间中建模隐状态的连续演化；解码器 $\mathrm{Dec}$ 由隐状态重建点云 $\hat{X}_k=\mathrm{Dec}(c_k)$。由此，世界模型同时具备重建与预测两种能力：前者保证隐状态可高保真还原为几何—多物理场点云，后者保证其可沿工艺参数自回归推演。
+% 【图占位：点云世界模型总体框架（编码器—推理器—解码器）】
 
-% 模型目标是学习一个算子G，建立如下映射关系：
-% \begin{equation}
-% G:(\theta)(x,y,z,SDF,step,Temp)\to(\mu,\sigma,d)
-% \end{equation}
-% 其中 $\mu$、$\sigma$ 和 $d$ 分别表示位移场、应力场和损伤场。为捕捉变形与应力的强耦合关系，模型采用共享输出层设计：分支网络提取参数特征 $B = [b_1, b_2, \dots, b_p]$，主干网络提取时空特征$ T = [t_1, t_2, \dots, t_q]$，二者融合后通过共享权重输出联合物理场：
-% % \begin{equation}
-% %     \mathbf{y}(x,y,z,step) \approx W \cdot (B \otimes T) + b_0
-% % \end{equation}
+\subsection{点云编码器}
+将第 $k$ 步点云记为 $X_k=\{\mathbf{p}_i\}_{i=1}^{N}$；为同时承载几何与物理信息，每个点以 $x_i=[\,\mathbf{p}_i;\ h_i\,]$ 表示，其中 $\mathbf{p}_i\in\mathbb{R}^{3}$ 为绝对坐标，$h_i\in\mathbb{R}^{3}$ 为该点的三个物理场（温度、等效应力、损伤）。编码器基于 PointNet++ 的层级结构【CITE: PointNet++（如 qi2017pointnet）】，以“采样—分组—局部聚合”逐级提取特征。
 
-% % \begin{equation}
-% % \begin {split}
-% %  \mathbf{y}(x,y,z, step) &= [u(x,y,z, step), \\
-% %      &\sigma(x,y,z, step), d(x,y,z,step)]
-% % \end{split}
-% % \end{equation}
-
-% \begin{equation}
-% \begin{split}
-% \mathbf{y}(x,y,z,step) &\approx W \cdot (B \otimes T) + b_0 \\
-% \mathbf{y}(x,y,z, step) &= [u(x,y,z, step), \\
-%      &\sigma(x,y,z, step), d(x,y,z,step)]
-% \end{split}
-% \end{equation}
-
-% 其中$W$是共享输出层的权重矩阵，$b_0$是偏置向量。该设计通过统一映射机制同步输出多物理场，强化了耦合关系学习，保障了物理一致性。
-
-% 训练过程通过最小化预测与真实数据之间的均方误差进行：
-% \begin{equation}
-% \mathcal{L} = \frac{1}{N} \sum_{i=1}^{N}
-% \left\|
-% \left[ \mathbf{y}^{(i)} \right] -
-% \left[ \mathbf{y}_\text{true}^{(i)} \right]
-% \right\|^2
-% \end{equation}
-This work develops a DeepONet-based surrogate model to predict the
-coupled spatiotemporal evolution of displacement, stress, and damage
-fields during forging. The model learns the underlying physics operator
-for full-time-domain prediction.
-
-The process is modeled as an evolution problem dependent on the initial
-temperature field and speed parameters
-$\theta = \{v_0, v_1, t_0, t_1\}$. Inputs are $\theta$ (branch net) and
-spatiotemporal coordinates $(x, y, z, SDF, step, Temp)$ (trunk net). A
-single forward pass outputs the state at any given time step
-(Fig. \ref{fig:model}).
-
-The model learns the operator $G$:
+首先以最远点采样（FPS）按几何确定性地选取中心点。记已选中心点集合为 $S_{m-1}$（初值 $S_0$ 任取一点），则第 $m$ 个中心点为
 \begin{equation}
-G: (\theta)(x, y, z, SDF, step, Temp) \rightarrow (u, \sigma, d)
+\mathbf{p}_{m}=\arg\max_{\mathbf{p}\in\{\mathbf{p}_i\}}\ \min_{\mathbf{p}'\in S_{m-1}}\big\|\mathbf{p}-\mathbf{p}'\big\|_{2},\qquad S_{m}=S_{m-1}\cup\{\mathbf{p}_{m}\},
 \end{equation}
-where $u$, $\sigma$, $d$ are displacement, stress, and damage. A shared
-output layer captures field couplings. Branch and trunk outputs $B$ and
-$T$ are fused as:
+即在剩余点中选取距已选集合最远者，其中 $\mathbf{p}_i$ 为点 $i$ 的坐标，$S_{m}$ 为已选前 $m$ 个中心点的集合。该采样对点的输入次序不敏感。对任一中心点 $\mathbf{p}_i$，以半径 $r$ 进行球查询得到其局部邻域
 \begin{equation}
-\mathbf{y} = [u, \sigma, d] = W \cdot (B \otimes T) + b_0
+\mathcal{N}_i=\{\,j:\ \|\mathbf{p}_j-\mathbf{p}_i\|_{2}\le r\,\},
 \end{equation}
-This unified mapping ensures physical consistency. Training minimizes
-the mean squared error:
+对邻域内各点应用共享 MLP，再逐通道最大池化，得到该中心点的局部特征
 \begin{equation}
-\mathcal{L} = \frac{1}{N} \sum_{i=1}^{N} \left\| \mathbf{y}^{(i)} - \mathbf{y}_{\text{true}}^{(i)} \right\|^2
+f_i=\max_{j\in\mathcal{N}_i}\ \mathrm{MLP}\big([\,h_j;\ \mathbf{p}_j-\mathbf{p}_i\,]\big),
 \end{equation}
+其中 $f_i$ 为中心点 $i$ 的局部特征，$\mathbf{p}_j-\mathbf{p}_i$ 为邻域点 $j$ 相对中心点的坐标，$h_j$ 为点 $j$ 的物理场特征（首层）。重复上述“采样—分组—聚合”共 $L$ 级，感受野由局部逐级扩展至全局。
+
+最后对末级特征做全局最大池化并经 MLP 映射，得到承载整件锻件状态的单一隐状态：
+\begin{equation}
+c_k=\mathrm{MLP}\Big(\max_{i} f_i^{(L)}\Big)\in\mathbb{R}^{d} .
+\end{equation}
+其中 $f_i^{(L)}$ 为第 $L$ 级（末级）输出的中心点特征，$\max_i$ 表示对全部中心点取逐通道最大值，$d$ 为隐状态维度。由于采样与分组仅依赖几何距离、且以对称的最大池化汇聚邻域信息，编码器对点的输入次序具有置换不变性，即 $E(\pi(X_k))=E(X_k)$。
+
+\subsection{神经动力学推理器}
+推理器的条件输入为锻压速度曲线 $v_y(t)$，它由工艺参数 $\theta=\{v_0,v_1,t_0,t_1\}$ 分段定义：
+\begin{equation}
+v_{y}(t)=\begin{cases}
+v_{0}, & t<t_{0} \\
+v_{0}+\left(v_{1}-v_{0}\right)\xi^{3}\left(10-15\xi+6\xi^{2}\right), & t_{0}\leq t\leq t_{1} \\
+v_{1}, & t>t_{1}
+\end{cases}
+\end{equation}
+其中 $\xi=(t-t_0)/(t_1-t_0)$，$v_0$、$v_1$ 为初始与目标速度，$t_0$、$t_1$ 为加速起止时刻。该曲线在 $t_0$ 与 $t_1$ 处具有二阶连续导数，保证加速过程平滑；其取值经标准化后作为推理器的条件输入。
+% 【CITE 待补：本速度曲线参数化改编自 Bambach 等 2018】
+
+在此基础上，推理器在“物理时间—隐状态”增广空间中建模隐状态的连续演化：以行程 $s$（压头位移）为积分变量，由 $ds=v_y(t)\,dt$ 得
+\begin{equation}
+\frac{dc}{ds}=g\big(c,\,v_y(t)\big),\qquad \frac{dt}{ds}=\frac{1}{v_y(t)} ,
+\end{equation}
+其中 $c$ 为隐状态，$g(\cdot)$ 为待学习的向量场（由 MLP 参数化）。即速度曲线作为物理先验被嵌入时间尺度变换，使预测的时间尺度与真实工艺一致。相邻时刻的隐状态通过对区间积分得到：
+\begin{equation}
+c_{k+1}=c_k+\int_{s_k}^{s_{k+1}} g\big(c(s),\,v_y(t(s))\big)\,ds ,
+\end{equation}
+其中 $s_k$ 与 $s_{k+1}$ 为相邻两时刻对应的行程，$c(s)$ 为沿行程演化的隐状态。该微分方程以四阶 Runge--Kutta 法求解，并配合伴随法进行反向传播【CITE: Neural ODE（如 Chen 等 2018）】。
+
+\subsection{几何—物理场联合解码器}
+解码器以首步几何为位移基底进行残差式几何重建，并以参考坐标查询回归物理场。记首步几何为 $R=\{\mathbf{r}_i\}_{i=1}^{N}$，解码器以隐状态 $c_k$ 与该参考坐标为输入，对每个参考点同时输出位移与物理场。其中 $R$ 即该样本的首步点云（记为 $X_0$），是坯料的初始几何；它在训练与推理阶段均为已知输入，并随初始工况逐样本变化。
+
+几何与物理场虽由同一隐状态 $c_k$ 驱动，但二者的输出语义与 $R$ 的作用不同：几何以 $R$ 为位移基底、需保证初始形状还原与物质点对应；物理场以 $R$ 为查询坐标、需回归物质点上的物理量。因此本文采用“共享隐状态、分头解码”的设计，既避免两类任务相互干扰（其量纲与损失尺度亦不同），又因共享 $c_k$ 使二者在物理上相互约束。下面分别介绍两条分支。
+
+\textbf{几何分支。} 以 $R$ 为硬基线，网络仅预测相对位移：
+\begin{equation}
+\Delta\mathbf{x}_i=\mathrm{disp}\big([\,\mathbf{r}_i;\ c_k\,]\big),\qquad \hat{\mathbf{x}}_i=\mathbf{r}_i+\Delta\mathbf{x}_i .
+\end{equation}
+其中 $\mathrm{disp}(\cdot)$ 为位移预测网络，$\Delta\mathbf{x}_i$ 为参考点 $i$ 的预测位移，$\hat{\mathbf{x}}_i$ 为重建坐标。零变形时 $\Delta\mathbf{x}_i\approx\mathbf{0}$，即 $\hat{\mathbf{x}}_i\approx\mathbf{r}_i$；这一残差形式把“重建几何”转化为“学习位移”，既降低了学习难度，又保证初始形状被精确还原。
+
+\textbf{物理场分支。} 以同一参考坐标 $\mathbf{r}_i$ 为查询点，回归三个物理场：
+\begin{equation}
+\hat{y}_i=\mathrm{field}\big([\,\mathbf{r}_i;\ c_k\,]\big)=\big(\hat{T}_i,\ \hat{\sigma}_i,\ \hat{D}_i\big)\in\mathbb{R}^{3} .
+\end{equation}
+其中 $\mathrm{field}(\cdot)$ 为物理场回归网络，$\hat{y}_i$ 为参考点 $i$ 的物理场预测，$\hat{T}_i$、$\hat{\sigma}_i$、$\hat{D}_i$ 分别为温度、等效应力与损伤的预测值。由于查询坐标在训练与推理时恒为首步几何 $R$（索引即物质点身份），两阶段的输入分布保持一致，避免了几何演变带来的分布漂移。
+
+\textbf{联合输出。} 两分支共享同一隐状态 $c_k$，逐点联合输出重建点云：
+\begin{equation}
+\hat{X}_k=\big\{\,(\hat{\mathbf{x}}_i,\ \hat{y}_i)\,\big\}_{i=1}^{N},
+\end{equation}
+从而在同一隐状态下联合重建形状与多物理场，强化几何与场的物理一致性。
+
+\subsection{训练目标}
+世界模型采用单阶段联合训练，端到端优化编码器、推理器与解码器，目标由三部分构成：
+\begin{equation}
+\mathcal{L}=\mathcal{L}_{\text{recon}}+\lambda\,\mathcal{L}_{\text{pred}}+\lambda_{M}\,\mathcal{L}_{\text{rollout}} .
+\end{equation}
+其中 $\lambda$ 与 $\lambda_M$ 为各项的权重系数（$\lambda_M$ 对应 $M$ 步展开）。重构损失为解码器由真实隐状态重建点云的逐点误差，在时间步上求和、在批上求均值（$\mathbb{E}[\cdot]$ 表示对批取期望）：
+\begin{equation}
+\mathcal{L}_{\text{recon}}=\mathbb{E}\Big[\sum_{k}\big\|\mathrm{Dec}(c_k)-X_k\big\|^{2}\Big] .
+\end{equation}
+隐空间预测损失为预测隐状态与真实编码之间的均方误差，其中 $\hat{c}_{k+1}$ 为推理器预测的下一时刻隐状态，$c_{k+1}=E(X_{k+1})$ 为对应的真实编码，$\mathrm{sg}(\cdot)$ 为停止梯度算子（切断梯度回传至编码器）：
+\begin{equation}
+\mathcal{L}_{\text{pred}}=\mathbb{E}\Big[\big\|\hat{c}_{k+1}-\mathrm{sg}(c_{k+1})\big\|^{2}\Big] .
+\end{equation}
+多步 rollout 损失用于增强长时预测稳定性：从第 $k$ 步出发自回归展开 $M$ 步，过程中逐步以预测隐状态推进（而非使用真实编码），再以展开终点与对应时刻的真实编码计算损失：
+\begin{equation}
+\mathcal{L}_{\text{rollout}}=\mathbb{E}\Big[\sum_{k}\big\|\hat{c}_{k}^{(M)}-\mathrm{sg}(c_{k+M})\big\|^{2}\Big],
+\end{equation}
+其中自回归展开为
+\begin{equation}
+\begin{aligned}
+\hat{c}_{k}^{(0)} &= \mathrm{sg}(c_k), \\
+\hat{c}_{k}^{(m+1)} &= \hat{c}_{k}^{(m)}+\int_{s_{k+m}}^{s_{k+m+1}} g\big(\hat{c}_{k}^{(m)},\,v_y(t(s))\big)\,ds ,
+\end{aligned}
+\end{equation}
+$\hat{c}_{k}^{(M)}$ 为展开 $M$ 步后的预测隐状态，$c_{k+M}=E(X_{k+M})$ 为对应时刻的真实编码。
