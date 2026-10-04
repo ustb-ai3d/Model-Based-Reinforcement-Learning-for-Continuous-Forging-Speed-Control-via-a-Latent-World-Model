@@ -19,13 +19,13 @@
 \begin{equation}
 f_i=\max_{j\in\mathcal{N}_i}\ \mathrm{MLP}\big([\,h_j;\ \mathbf{p}_j-\mathbf{p}_i\,]\big),
 \end{equation}
-其中 $f_i$ 为中心点 $i$ 的局部特征，$\mathbf{p}_j-\mathbf{p}_i$ 为邻域点 $j$ 相对中心点的坐标，$h_j$ 为点 $j$ 的物理场特征（首层）。重复上述“采样—分组—聚合”共 $L$ 级，感受野由局部逐级扩展至全局。
+其中 $f_i$ 为中心点 $i$ 的局部特征，$\mathbf{p}_j-\mathbf{p}_i$ 为邻域点 $j$ 相对中心点的坐标，$h_j$ 为点 $j$ 的物理场特征（首层）。重复上述“采样—分组—聚合”共 $n_{\text{SA}}$ 级，感受野由局部逐级扩展至全局。
 
 最后对末级特征做全局最大池化并经 MLP 映射，得到承载整件锻件状态的单一隐状态：
 \begin{equation}
-c_k=\mathrm{MLP}\Big(\max_{i} f_i^{(L)}\Big)\in\mathbb{R}^{d} .
+c_k=\mathrm{MLP}\Big(\max_{i} f_i^{(n_{\text{SA}})}\Big)\in\mathbb{R}^{d} .
 \end{equation}
-其中 $f_i^{(L)}$ 为第 $L$ 级（末级）输出的中心点特征，$\max_i$ 表示对全部中心点取逐通道最大值，$d$ 为隐状态维度。由于采样与分组仅依赖几何距离、且以对称的最大池化汇聚邻域信息，编码器对点的输入次序具有置换不变性，即 $E(\pi(X_k))=E(X_k)$。
+其中 $f_i^{(n_{\text{SA}})}$ 为第 $n_{\text{SA}}$ 级（末级）输出的中心点特征，$\max_i$ 表示对全部中心点取逐通道最大值，$d$ 为隐状态维度。由于采样与分组仅依赖几何距离、且以对称的最大池化汇聚邻域信息，编码器对点的输入次序具有置换不变性，即 $E(\pi(X_k))=E(X_k)$。
 
 \subsection{神经动力学推理器}
 推理器的条件输入为锻压速度曲线 $v_y(t)$，它由工艺参数 $\theta=\{v_0,v_1,t_0,t_1\}$ 分段定义：
