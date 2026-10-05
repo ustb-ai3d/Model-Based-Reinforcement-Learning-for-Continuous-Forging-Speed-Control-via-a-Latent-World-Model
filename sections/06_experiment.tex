@@ -45,32 +45,44 @@
 图~\ref{fig:ours_speed} 给出了本文方法在不同初始温度场下生成的速度曲线。当初始温度由 $474\,^{\circ}\mathrm{C}$ 升至 $500\,^{\circ}\mathrm{C}$ 时，速度曲线的加速段提前、锻造时间缩短，表明决策器能够依据初始温度场自适应地调整速度曲线，以利用材料的高温软化特性。
 
 \begin{figure}[htbp]
-\centerline{\includegraphics[width=\linewidth]{NetworkSpeed.pdf}}
-\caption{本文方法在不同初始温度场下生成的速度曲线（$474\,^{\circ}\mathrm{C}$--$500\,^{\circ}\mathrm{C}$）。}
+\centerline{\includegraphics[width=\linewidth]{speed_close.pdf}}
+\caption{本文方法（闭环策略）在不同初始温度场下生成的速度曲线（$474\,^{\circ}\mathrm{C}$--$500\,^{\circ}\mathrm{C}$）。}
 \label{fig:ours_speed}
 \end{figure}
 
 \begin{figure}[htbp]
-\centerline{\includegraphics[width=\linewidth]{PSOSpeed.pdf}}
-\caption{其他决策方式在不同初始温度场下生成的速度曲线（$474\,^{\circ}\mathrm{C}$--$500\,^{\circ}\mathrm{C}$）。}
-\label{fig:other_speed}
+    \centering
+    \begin{subfigure}{0.48\columnwidth}
+        \centering
+        \includegraphics[width=\linewidth]{NetworkSpeed.pdf}
+        \caption{PolicyNet}
+        \label{fig:policynet_speed}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}{0.48\columnwidth}
+        \centering
+        \includegraphics[width=\linewidth]{PSOSpeed.pdf}
+        \caption{PSO}
+        \label{fig:pso_speed}
+    \end{subfigure}
+    \caption{与其他决策方式的速度曲线对比（$474\,^{\circ}\mathrm{C}$--$500\,^{\circ}\mathrm{C}$）。}
+    \label{fig:other_speed}
 \end{figure}
-% 【待补：其他决策方式（如固定参数决策）的速度曲线；凑齐后可合并为子图组】
-% 【占位图：PSOSpeed.pdf 暂作占位，后续替换为对应决策方式的曲线】
 
-进一步比较闭环决策与开环参数化。开环参数化仅在预设的低维速度曲线族内寻优，不利用锻造过程中的逐步演化信息；闭环决策以世界模型为代理环境逐步推进，生成的连续速度曲线可随损伤、应力等状态自适应调整。表~\ref{tab:Method Comparison} 给出了两种方案在锻造时间、决策时间与损伤率上的对比，图~\ref{fig:PSO-Objective} 进一步展示了目标函数在寻优过程中的变化。
+进一步比较不同决策方式的过程性能与决策效率，各方式的速度曲线分别如图~\ref{fig:ours_speed} 和图~\ref{fig:other_speed} 所示，定量结果见表~\ref{tab:Method Comparison}。PSO 的过程质量最优，锻造时间最短、损伤为 0，但求解耗时长，难以满足实时性要求；固定参数曲线（PolicyNet）的锻造时间次短、给出决策的速度很快，但仿真中出现损伤，安全性得不到保证；本文闭环决策的锻造时间最长，但相对固定参数曲线仅略长，其决策因采用自回归逐步推理而略慢于固定参数的开环决策，仍明显快于 PSO，且仿真测试中不出现损伤。可见，本文方法以很小的锻造时间代价换取了无损伤的安全性，以及远优于 PSO 的决策速度。图~\ref{fig:PSO-Objective} 进一步展示了目标函数在寻优过程中的变化。
 
 \begin{table}[htbp]
 \centering
-\caption{闭环决策与开环参数化对比}
+\caption{三种决策方式的性能对比}
 \setlength{\tabcolsep}{3.5pt}
 \begin{tabular}{c c c c}
 \toprule
 \textbf{Method} & \textbf{Forge Time} & \textbf{Decision Time} & \textbf{Damage Rate}\\
 & (mean$\pm$std,ms) & (mean$\pm$std,ms) & (\%)\\
 \midrule
-闭环决策   & 【待补】 & 【待补】 & 【待补】 \\
-开环参数化 & 【待补】 & 【待补】 & 【待补】 \\
+闭环决策   & 126.28$\pm$4.56 & 105.21$\pm$4.13 & 0.00 \\
+固定参数   & 121.91$\pm$6.63 & 97.37$\pm$3.86 & 8.00 \\
+PSO        & 108.72$\pm$11.55 & 2580$\pm$1370 & 0.00 \\
 \bottomrule
 \end{tabular}
 \label{tab:Method Comparison}
@@ -83,4 +95,4 @@
 \end{figure}
 % 【占位图：PSO-Objective-2.pdf 暂作占位，后续替换为闭环与开环的目标函数对比】
 
-综上，开环参数化只能在固定形状族内寻优、且不利用过程状态；闭环决策仅需一次前向展开即可生成连续曲线，在满足损伤约束的同时缩短锻造时间，更适用于实际锻造工况。
+综上，PSO 与固定参数曲线分别在决策效率与安全性上存在不足，而本文闭环决策在保证无损伤的同时保持了可接受的锻造时间与远优于 PSO 的决策速度，更适用于实际锻造工况。
