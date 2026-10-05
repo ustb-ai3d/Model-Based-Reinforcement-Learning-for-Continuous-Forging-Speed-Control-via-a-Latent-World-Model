@@ -19,13 +19,13 @@ v_y(t)=v\big(s(t)\big),
 \end{equation}
 其中 $s(t)$ 为累计行程随时间的变化，由上式积分得到、单调递增。即 $K+1$ 个节点值先插值成以行程为自变量的速度剖面，再转换为以时间 $t$ 为自变量的速度曲线 $v_y(t)$，每个节点位于累计行程为 $i\,\Delta h/K$ 的时刻。该曲线 $v_y(t)$ 即压机可直接执行的速度–时间指令，也是锻造时间等效率指标的度量基准。
 
-\textbf{转移与终止} $c_{k+1}=c_k+\int_{s_k}^{s_{k+1}}g\big(c,v_y(t)\big)\,ds$：在第 $k$ 段行程 $[s_k,s_{k+1}]$（$k=0,\dots,K-1$）上按 $v(s)$ 沿行程积分推进隐状态；完成全部 $K$ 段、到达 $s=\Delta h$ 即终止。
+\textbf{转移} $c_{k+1}=c_k+\int_{s_k}^{s_{k+1}}g\big(c,v_y(t)\big)\,ds$：在第 $k$ 段行程 $[s_k,s_{k+1}]$ 上按 $v(s)$ 沿行程积分推进隐状态。
 
-\textbf{行程约束} 分段沿行程等分，各段行程固定为 $\Delta h/K$，故总行程恒成立：
+\textbf{行程约束} 各段沿行程等分，总行程满足
 \begin{equation}
-\sum_{k=0}^{K-1}\Delta h_k=\Delta h \;\Longleftrightarrow\; \int_{0}^{t_f}v_y(t)\,dt=\Delta h .
+\int_{0}^{t_f}v_y(t)\,dt=\Delta h .
 \end{equation}
-在此前提下，各段耗时由节点值决定，$\Delta t_k=\int_{s_k}^{s_{k+1}}ds/v(s)$（$k=0,\dots,K-1$）：节点速度越大，该段耗时越短。
+各段耗时由节点值决定，$\Delta t_k=\int_{s_k}^{s_{k+1}}ds/v(s)$：节点速度越大，该段耗时越短。
 
 \textbf{奖励} 逐步权衡效率与质量：
 \begin{equation}

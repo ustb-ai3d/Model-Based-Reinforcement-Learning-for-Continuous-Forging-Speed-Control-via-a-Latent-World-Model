@@ -1,6 +1,8 @@
 .ol-sync/
+.miktex/
 .env
 *.aux
+*.bbl
 *.bcf
 *.blg
 *.fdb_latexmk
