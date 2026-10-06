@@ -7,9 +7,9 @@
 \subsection{决策问题建模}
 将锻造速度决策建模为带安全约束的有限时域马尔可夫决策过程（CMDP）【CITE: CMDP（如 Altman）】，其各要素定义如下。
 
-\textbf{状态} $o_k=\mathrm{Dec}(c_k)$ 为解码后的几何—多物理场点云（观测），$c_k$ 为世界模型内部隐状态。
+\textbf{状态} 以世界模型内部隐状态 $c_k$ 为状态，其解码得到的几何—多物理场点云 $o_k=\mathrm{Dec}(c_k)$ 为决策所依据的观测；策略与价值函数均以 $o_k$ 为输入（$o_k$ 为 $c_k$ 的确定性函数）。
 
-\textbf{动作与曲线} 将总行程等分为 $K$ 段，节点取各段端点 $s_i=i\,\Delta h/K$（$i=0,\dots,K$，共 $K+1$ 个）。第 $i$ 个动作 $a_i=v_i$ 为节点 $s_i$ 处的速度；节点序列 $(v_0,\dots,v_K)$ 先拼成以行程为自变量的速度剖面
+\textbf{动作与曲线} 沿总行程取 $K+1$ 个节点 $s_i=i\,\Delta h/K$（$i=0,\dots,K$）。第 $i$ 个动作 $a_i=v_i$ 为节点 $s_i$ 处的速度；节点序列 $(v_0,\dots,v_K)$ 先拼成以行程为自变量的速度剖面
 \begin{equation}
 v(s)=\sum_{i=0}^{K}\varphi_i(s)\,v_i,\qquad s\in[0,\Delta h],
 \end{equation}
@@ -21,7 +21,7 @@ v_y(t)=v\big(s(t)\big),
 
 \textbf{转移} $c_{k+1}=c_k+\int_{s_k}^{s_{k+1}}g\big(c,v_y(t)\big)\,ds$：在第 $k$ 段行程 $[s_k,s_{k+1}]$ 上按 $v(s)$ 沿行程积分推进隐状态。
 
-\textbf{行程约束} 各段沿行程等分，总行程满足
+\textbf{行程约束} 总行程满足
 \begin{equation}
 \int_{0}^{t_f}v_y(t)\,dt=\Delta h .
 \end{equation}
