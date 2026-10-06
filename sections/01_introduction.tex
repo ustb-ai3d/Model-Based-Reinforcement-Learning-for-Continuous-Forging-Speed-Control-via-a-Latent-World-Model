@@ -106,3 +106,15 @@ generator for policy learning.
 2. We propose an offline safe RL paradigm tailored for the
 multi-constraint, multi-objective nature of forging. An optimal control
 agent is developed to directly generate the optimal forging speed curve.
+
+The overall framework of this research is illustrated in
+Fig. \ref{fig:framework}. It consists of two stages: a point-cloud world
+model is first learned from simulation data to act as a fast and
+differentiable environment, and a model-based policy is then trained
+within this environment to generate the forging speed curve.
+
+\begin{figure}[htbp]
+\centerline{\includegraphics[width=\linewidth]{frame-1.pdf}}
+\caption{The framework of this research.}
+\label{fig:framework}
+\end{figure}

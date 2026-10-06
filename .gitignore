@@ -1,5 +1,6 @@
 .ol-sync/
 .miktex/
+.pptxbuild/
 .env
 *.aux
 *.bbl
@@ -38,7 +39,6 @@ figures/damage_Legend.png
 figures/damages_episode_4999.png
 figures/fig1.png
 figures/frame.pdf
-figures/frame-1.pdf
 figures/model.pdf
 figures/model_result.pdf
 figures/objective.png
