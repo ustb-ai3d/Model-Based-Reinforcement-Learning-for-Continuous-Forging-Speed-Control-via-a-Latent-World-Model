@@ -5,11 +5,11 @@
 % 【图占位：决策器训练与「闭环求解—开环执行」流程】
 
 \subsection{决策问题建模}
-将锻造速度决策建模为带安全约束的有限时域马尔可夫决策过程（CMDP）【CITE: CMDP（如 Altman）】，其各要素定义如下。
+将下压速度决策建模为带安全约束的有限时域马尔可夫决策过程（CMDP）【CITE: CMDP（如 Altman）】，其各要素定义如下。
 
 \textbf{状态} 以世界模型内部隐状态 $c_k$ 为状态，其解码得到的几何—多物理场点云 $o_k=\mathrm{Dec}(c_k)$ 为决策所依据的观测；策略与价值函数均以 $o_k$ 为输入（$o_k$ 为 $c_k$ 的确定性函数）。
 
-\textbf{动作与曲线} 沿总行程取 $K+1$ 个节点 $s_i=i\,\Delta h/K$（$i=0,\dots,K$）。第 $i$ 个动作 $a_i=v_i$ 为节点 $s_i$ 处的速度；节点序列 $(v_0,\dots,v_K)$ 先拼成以行程为自变量的速度剖面
+\textbf{动作与曲线} 沿总行程取 $K+1$ 个节点 $s_i=i\,\Delta h/K$（$i=0,\dots,K$）。第 $i$ 个动作 $a_i=v_i$ 为节点 $s_i$ 处的速度；节点序列 $(v_0,\dots,v_K)$ 先拼成以行程为自变量的速度曲线
 \begin{equation}
 v(s)=\sum_{i=0}^{K}\varphi_i(s)\,v_i,\qquad s\in[0,\Delta h],
 \end{equation}
@@ -17,7 +17,7 @@ v(s)=\sum_{i=0}^{K}\varphi_i(s)\,v_i,\qquad s\in[0,\Delta h],
 \begin{equation}
 v_y(t)=v\big(s(t)\big),
 \end{equation}
-其中 $s(t)$ 为累计行程随时间的变化，由上式积分得到、单调递增。即 $K+1$ 个节点值先插值成以行程为自变量的速度剖面，再转换为以时间 $t$ 为自变量的速度曲线 $v_y(t)$，每个节点位于累计行程为 $i\,\Delta h/K$ 的时刻。该曲线 $v_y(t)$ 即压机可直接执行的速度–时间指令，也是锻造时间等效率指标的度量基准。
+其中 $s(t)$ 为累计行程随时间的变化，由上式积分得到、单调递增。即 $K+1$ 个节点值先插值成以行程为自变量的速度曲线，再转换为以时间 $t$ 为自变量的速度曲线 $v_y(t)$，每个节点位于累计行程为 $i\,\Delta h/K$ 的时刻。该曲线 $v_y(t)$ 即压机可直接执行的速度–时间指令，也是锻造时间等效率指标的度量基准。
 
 \textbf{转移} $c_{k+1}=c_k+\int_{s_k}^{s_{k+1}}g\big(c,v_y(t)\big)\,ds$：在第 $k$ 段行程 $[s_k,s_{k+1}]$ 上按 $v(s)$ 沿行程积分推进隐状态。
 
@@ -37,7 +37,7 @@ r_k=w_1 e^{-\Delta t_k}-w_2 e^{\text{stress}_k},
 \begin{equation}
 d_k=\mathrm{relu}(D_k-D_{\text{cr}}),
 \end{equation}
-其中 $D_k$ 为第 $k$ 步的损伤累积值，$D_{\text{cr}}$ 为临界损伤值；$d_k=0$ 表示该步未越限。
+其中 $D_k$ 为第 $k$ 步工件的最大损伤累积值，即该步损伤场的最大值，对应式~\ref{equ:model}~中 $D(t)$ 在第 $k$ 步的取值；$D_{\text{cr}}$ 为临界损伤值，$d_k=0$ 表示该步未越限。
 
 \textbf{优化目标} 在每一步均满足损伤约束的前提下最大化累积奖励：
 \begin{equation}
@@ -81,9 +81,9 @@ L(\psi,\lambda)=\mathbb{E}\Big[\sum_{k}\gamma^{k}\ln \pi_{\psi}(a_k\mid o_k)\cdo
 \begin{equation}
 A(o_k,a_k)=\tilde r_k+\gamma\hat{V}(o_{k+1})-\hat{V}(o_k),
 \end{equation}
-$\hat{V}(o_k)$ 为价值估计（critic）。价值网络以最小化一步时序差分（TD）误差训练，目标侧停止梯度：
+$\hat{V}(o_k)$ 为价值估计（critic），其网络参数记为 $\phi$。价值网络以最小化一步时序差分（TD）误差训练，目标侧停止梯度：
 \begin{equation}
-L_{V}(\theta)=\mathbb{E}\Big[\big(\hat{V}(o_k)-\big[\tilde r_k+\gamma\,\mathrm{sg}(\hat{V}(o_{k+1}))\big]\big)^{2}\Big],
+L_{V}(\phi)=\mathbb{E}\Big[\big(\hat{V}(o_k)-\big[\tilde r_k+\gamma\,\mathrm{sg}(\hat{V}(o_{k+1}))\big]\big)^{2}\Big],
 \end{equation}
 其中 $\mathrm{sg}(\cdot)$ 为停止梯度算子。为鼓励探索并防止过早收敛，加入逐步熵正则项：
 \begin{equation}

@@ -1,6 +1,6 @@
-\section{Parameterized speed Profile}
+\section{Parameterized Speed Curve}
 \label{sec:speed}
-% 本研究构建面向单次锻造的锻压速度曲线决策器，能够根据锻件初始温度场快速生成完整速度曲线。参考前人工作\cite{lin2011critical}，将速度曲线限定为匀速-加速-匀速模式，并采用四参数平滑函数进行参数化，其数学表达式为：
+% 本研究构建面向单次锻造的下压速度曲线决策器，能够根据工件初始温度场快速生成完整速度曲线。参考前人工作\cite{lin2011critical}，将速度曲线限定为匀速-加速-匀速模式，并采用四参数平滑函数进行参数化，其数学表达式为：
 % \begin{equation}
 % v_{y}(t)=\begin{cases}
 % v_{0}, & t<t_{0} \\
@@ -11,15 +11,15 @@
 
 % \begin{figure}[htbp]
 % \centerline{\includegraphics[width=\linewidth]{speed_profile.eps}}
-% \caption{Parameterized speed profile.}
+% \caption{Parameterized speed curve.}
 % \label{fig:speed_profile}
 % \end{figure}
 
 % 该函数在$t_0$和$t_1$处具有二阶连续导数，保证加速过程平滑。参数化实现了从低维参数到连续曲线的映射$v_y (t;\theta)$，将速度优化问题转化为对$\theta$的搜索问题。
-This study constructs a forging-speed profile decision system for single
+This study constructs a forging speed curve decision system for single
 forging operations, capable of rapidly generating a complete speed
 profile based on the initial temperature field of the workpiece. In line
-with previous work \cite{lin2011critical}, the speed profile is defined
+with previous work \cite{lin2011critical}, the speed curve is defined
 by a constant-acceleration-constant pattern and parameterized using a
 smooth four-parameter function.
 % 【CITE 待校正：本参数化应出自 Bambach 等，Towards Damage Controlled Hot Forming，Applied Mechanics and Materials，885: 56--63，2018；后续替换或补充此处引用】
@@ -39,7 +39,7 @@ respectively (Fig. \ref{fig:speed_profile}).
 
 \begin{figure}[htbp]
 \centerline{\includegraphics[width=\linewidth]{velocity_profile.pdf}}
-\caption{Parameterized speed profile.}
+\caption{Parameterized speed curve.}
 \label{fig:speed_profile}
 \end{figure}
 
@@ -47,5 +47,5 @@ The function possesses a continuous second-order derivative at both
 $t_0$ and $t_1$, guaranteeing a smooth acceleration process. This
 parameterization effectively maps the low-dimensional parameter set
 $\theta$ to a continuous curve, $v_y (t;\theta)$, thereby transforming
-the speed profile optimization problem into a search for the optimal
+the speed curve optimization problem into a search for the optimal
 $\theta$.
