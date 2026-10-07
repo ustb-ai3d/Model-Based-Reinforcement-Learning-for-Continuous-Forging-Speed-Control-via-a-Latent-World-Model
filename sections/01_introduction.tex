@@ -1,120 +1,140 @@
-\section{Introduction}
-Forging is a core forming process in advanced equipment manufacturing.
-As illustrated in Fig. \ref{fig:forging_press}, the workpiece undergoes
-plastic deformation under compression between the upper and lower dies.
-The forging speed, as a pivotal parameter, influences the
-thermo-mechanical response and material dynamic softening behavior by
-controlling the strain rate, thereby playing a decisive role in both
-forming quality and efficiency.
+\section{引言}
 
-However, this process is highly nonlinear, dynamically fast-changing,
-and its internal state is often unmeasurable, making speed
-decision-making a challenging open-loop control problem.
-Traditional constant-speed strategies struggle to fully exploit material
-dynamic softening, while variable-speed strategies present their own
-difficulties: excessively high speeds can cause stress concentration and
-damage, while excessively low speeds lead to increased deformation
-resistance due to billet cooling, heightening the risk of cracking.
-Consequently, rational planning of a speed profile to balance efficiency
-and quality is of critical importance.
+% ===== 第1段：业务问题（决策导向） =====
+锻造是航空、能源、汽车等领域关键承力构件的主要成形工艺，
+其成形质量关系构件服役安全，生产效率与成本决定企业效益。
+因而锻造生产需在保证成形质量的前提下尽可能缩短锻造时间、提高产能。
+如图~\ref{fig:forging_press}所示，工件在上、下模具之间受压发生塑性变形，
+压机下压速度曲线通过控制应变速率影响热力耦合响应与材料动态软化行为~\cite{lin2011critical}，
+同时决定锻造时间（产能）与工件损伤（质量），并影响设备与模具损耗。
+因此，如何设定压机下压速度曲线，是实现高效优质锻造的核心决策问题。
 
 \begin{figure}[htbp]
 \centerline{\includegraphics[width=\linewidth]{forging_press.png}}
-\caption{Forging press.}
+\caption{锻造压机示意。}
 \label{fig:forging_press}
 \end{figure}
 
-% 为充分利用铝合金的动态软化特性\cite{lin2011critical}，本文提出"先慢后快"的变速策略：在变形初期以较低速度抑制应力集中，待材料进入软化阶段后逐步提高速度以兼顾效率。然而，实现该策略需解决高维非线性系统的优化控制难题。传统方法如模型预测控制(MPC)\cite{kouvaritakis2016model}优化速度慢，迭代学习控制(ILC)\cite{ahn2007iterative}依赖工况重复性，难以适应锻造过程的波动。
-% 近年来，强化学习(RL)在机器人控制\cite{hafner2020mastering}等领域展现出强大潜力。例如，Stendal与Bambach\cite{stendal2024developing}提出了融合强化学习与有限元分析的协同仿真框架，用于钛铝合金塑性成形过程的智能控制，然而，该方法依赖于在线实时调整工艺参数的反馈机制，而真实锻造过程中显著的系统响应延迟使得此类闭环策略难以稳定实施；Dharmadhikari等人\cite{dharmadhikari2023reinforcement}则开发了基于无模型Q学习的强化学习框架，实现了增材制造工艺参数的自主优化。
-% 这些方法均需在真实环境或仿真中进行在线学习。然而，真实锻造环境试验成本高、系统响应延迟长、设备操作风险大，完全不具备在线探索学习的条件，因此上述工作缺乏工程适用性。
+% ===== 第2段：研究意义（决策导向） =====
+本文旨在不同工件初始温度条件下智能决策压机下压速度曲线。
+锻造前工件经加热炉预热至不同温度，由于出炉至装夹存在传输延迟与散热差异，
+每批次工件进入压机时的初始温度存在波动，
+进而影响整个锻造过程的材料变形抗力与损伤演化。
+由于下压速度可在整个锻造历程上连续变化，
+该曲线能随工件温度与变形的进程灵活调节下压快慢，
+在保证工件不开裂的同时尽可能缩短锻造时间，
+从而提升产量、降低成本、减少设备与模具损耗。
+相较于恒速或低维分段速度方案，
+连续速度曲线具备更高的自由度与过程适应性，
+能够更充分地利用材料的动态软化效应。
 
-% 离线强化学习(ORL)\cite{levine2020offline}通过基于历史数据学习策略，有效规避了在线交互的风险。DeepThermal\cite{zhan2022deepthermal}采用基于模型的ORL框架实现了发电机组的安全控制，Yuan等\cite{10705802}提出的时序批约束Q学习算法在浓密机控制中取得成效，验证了ORL在工业过程中的可行性。
+% ===== 第3段：现有方法的 Gap =====
+工业过程的工艺参数决策通常遵循基于模型的控制范式：
+先由观测确定当前状态，再借助模型预测过程演化，据此优化控制量。
+然而，现有工作在状态表征、演化预测与决策三个环节上均存在不足。
 
-% 然而，将离线强化学习应用于高维非线性锻造过程仍面临两大挑战：现有方法多依赖低维观测数据，难以准确表征锻造的多物理场耦合演化过程，亟需发展轻量化代理模型以替代昂贵的有限元仿真。此外，锻造设备的锻压速度属于高维连续动作，这导致策略学习与优化的复杂度显著提升。
+\textbf{状态表征。}
+锻造决策所需的观测是每步高维、无序、同时携带几何与多物理场的点云，
+要求状态表征既能重建几何与多物理场、又能刻画其随时间的演化。
+现有工业控制方法多基于低维工艺参数或标量观测，
+难以表征如此丰富的空间分布信息~\cite{stendal2024developing, dharmadhikari2023reinforcement}；
+而点云深度学习模型~\cite{qi2017pointnet} % TODO: PointNet++ \cite{qi2017pointnetpp}
+多面向静态场景的分类与分割，
+点云生成模型 % TODO: PCN \cite{yuan2018pcn}, FoldingNet \cite{yang2018foldingnet}, PointFlow \cite{li2019pointflow}
+虽能重建静态点云，但难以建模点云在工艺条件驱动下的时变演化过程。
 
+\textbf{演化预测。}
+锻造热变形具有连续时变特性，要求模型在连续时间上刻画其演化。
+传统有限元方法精度高，但单次求解耗时数小时至数天，
+难以支撑工艺迭代与参数优化； % TODO: FEM forging sim \cite{...
+端到端数据驱动模型只给出单次输入到输出的映射，
+不具备多步时序预测能力；
+现有数据驱动时序模型（如RNN、LSTM、Transformer）
+% TODO: 时序模型引用
+多以离散时间步建模，难以刻画锻造变形这种连续物理演化过程。
+Neural ODE~\cite{chen2018neural} % TODO: 确认引用
+提供了在连续时间上建模动力学的框架，
+但其在高维点云时序预测中的应用尚未被充分探索。
 
-% 针对上述挑战，本研究围绕铝合金锻造场景，重点研究：1.如何建立预测温度场、应力场与位移场全时域演化的高精度、高效率代理模型；2.如何基于离线强化学习，实现锻压速度曲线的低维参数化表征与开环优化，以生成满足多目标约束的高效设定曲线。主要贡献如下：
+\textbf{决策。}
+锻造过程中工件内部应力场与损伤场无法实时测量，
+温度场虽可通过红外手段获取表面信息，但内部温度分布仍难以观测，
+加之单次成形时间短、系统响应延迟大，进行在线闭环控制缺乏实用价值，
+因而速度曲线只能在生产前离线确定、开环下发。
+关键在于如何在离线条件下安全、高效地求解这条曲线。
+恒速控制无法充分利用材料的动态软化效应；
+而变速策略存在两难：速度过高会引起应力集中与损伤，
+过低则因工件降温使变形抗力上升、增大开裂风险。
+现有控制方法大多依赖在线反馈与交互：
+模型预测控制（MPC）~\cite{kouvaritakis2016model}
+需在线滚动优化且依赖实时状态反馈，
+而锻造内部状态难以实时测量、系统响应延迟大，使其不适用；
+迭代学习控制（ILC）~\cite{ahn2007iterative}
+依赖工况可重复性，难以适应锻造过程的波动；
+强化学习（RL）需在线探索~\cite{stendal2024developing, dharmadhikari2023reinforcement}，
+而锻造实验成本高、响应延迟大、风险高，在线学习并不现实。
+离线强化学习~\cite{levine2020offline}
+通过历史数据学习策略，规避了在线交互风险，
+已在工业场景中展现可行性~\cite{zhan2022deepthermal, 10705802}，
+但现有方法多依赖低维观测，
+且动作空间多为单发低维参数，
+难以表达连续速度曲线这种高自由度决策。
 
+针对上述不足，本文旨在构建一个以任意连续时间速度曲线为输入、
+在低维隐状态内联合承载几何与多物理场演化的锻造世界模型，
+在连续时间上刻画锻造热变形过程并保证重建与长时预测精度，
+作为决策训练与推理的代理环境；
+并在此基础上，利用离线数据训练连续速度曲线决策器，
+在满足损伤约束的前提下输出光滑连续、可直接执行的完整速度曲线，
+实现压机下压速度曲线的智能决策。
 
+% ===== 第6段：研究方法 =====
+本文采用两阶段方法，总体框架如图~\ref{fig:framework}所示。
 
+\textbf{阶段一｜世界模型训练。}
+采用编码器—推理器—解码器框架：
+PointNet~\cite{qi2017pointnet} % TODO: PointNet++ \cite{qi2017pointnetpp}
+层级编码器将每步点云压缩为低维隐状态，
+联合承载几何与多物理场信息；
+以速度曲线为物理先验的 Neural ODE % TODO: \cite{chen2018neural}
+在隐空间中建模连续时间动力学演化；
+解码器以首步几何为位移基底做残差重建，
+并以首步几何坐标回归物理场，
+实现点云的重建与预测。
 
-% 1．提出了基于深度算子网络的锻压过程代理模型架构，能够高精度、高效率地预测应力场、位移场等多物理场的时空演化过程，为策略学习提供了高效数据生成器。
-
-% 2．提出了面向锻造场景多约束、多优化目标特点的离线安全强化学习范式。构建能够直接生成最优锻造速率曲线的优化控制器。
-To fully exploit the dynamic softening characteristics of aluminum alloys
-\cite{lin2011critical}, this paper proposes a "slow-then-fast"
-variable-speed strategy. This approach employs a lower speed at the
-initial deformation stage to mitigate stress concentration, and
-subsequently increases the speed as the material enters the softening
-stage to enhance efficiency. However, implementing this strategy
-requires solving the optimal control problem of a high-dimensional
-nonlinear system. Conventional methods, such as model predictive
-control (MPC) \cite{kouvaritakis2016model}, suffer from slow
-optimization speeds, while iterative learning control (ILC)
-\cite{ahn2007iterative} relies on operating condition repeatability,
-making them unsuitable for handling fluctuations in the forging process.
-
-Recently, reinforcement learning (RL) has demonstrated considerable
-potential in domains like robotic control \cite{hafner2020mastering}.
-For instance, Stendal and Bambach \cite{stendal2024developing} developed
-a co-simulation framework integrating RL with finite element analysis
-for the intelligent control of Ti-Al alloy plastic forming. However,
-their method depends on a feedback mechanism for online parameter
-adjustment, which is challenging to implement stably in real forging due
-to significant system response delays. Dharmadhikari et al.
-\cite{dharmadhikari2023reinforcement} devised a model-free Q-learning
-framework for autonomous optimization of additive manufacturing
-parameters.
-
-These methods, however, require online learning in either real or
-simulated environments. Conducting online exploration in real forging is
-impractical due to high costs, long delays, and operational risks, thus
-limiting the engineering applicability of the aforementioned approaches.
-
-Offline reinforcement learning (ORL) \cite{levine2020offline} overcomes
-this limitation by learning policies directly from historical datasets,
-effectively avoiding the risks of online interaction. For example,
-DeepThermal \cite{zhan2022deepthermal} employed a model-based ORL
-framework for safe control of power units, and Yuan et al.
-\cite{10705802} achieved effective control in thickener operation with a
-temporal batch-constrained Q-learning algorithm, validating ORL's
-feasibility in industrial processes.
-
-Nevertheless, applying ORL to high-dimensional nonlinear forging poses
-two major challenges. First, existing methods often rely on
-low-dimensional observational data, which is insufficient to characterize
-the coupled multi-physics evolution, necessitating a lightweight
-surrogate model to replace costly finite element simulations. Second,
-the forging speed constitutes a high-dimensional continuous action,
-significantly increasing the complexity of policy learning and
-optimization.
-
-To address these challenges, this study focuses on aluminum alloy
-forging and investigates: 1) establishing a high-precision and efficient
-surrogate model for predicting the full-time evolution of temperature,
-stress, and displacement fields; and 2) leveraging ORL to achieve
-low-dimensional parameterization and open-loop optimization of the speed
-profile, generating an efficient set-point curve that satisfies multiple
-constraints. The main contributions are as follows:
-
-1. We propose a surrogate model architecture for the forging process
-based on the deep operator network, which enables highly accurate and
-efficient prediction of the spatiotemporal evolution of multi-physics
-fields (e.g., stress and displacement), serving as an efficient data
-generator for policy learning.
-
-2. We propose an offline safe RL paradigm tailored for the
-multi-constraint, multi-objective nature of forging. An optimal control
-agent is developed to directly generate the optimal forging speed curve.
-
-The overall framework of this research is illustrated in
-Fig. \ref{fig:framework}. It consists of two stages: a point-cloud world
-model is first learned from simulation data to act as a fast and
-differentiable environment, and a model-based policy is then trained
-within this environment to generate the forging speed curve.
+\textbf{阶段二｜决策器训练。}
+以训练完成的世界模型为环境，
+将速度曲线的决策建模为带安全约束的有限时域马尔可夫决策过程~\cite{altman2021constrained}；
+策略以世界模型解码得到的几何—物理场观测为输入，
+在变形历程中逐步决定下压速度，
+生成光滑连续的速度曲线；
+该策略通过离线安全强化学习训练，以拉格朗日松弛处理损伤约束。
+求解阶段在世界模型内离线闭环、逐步决策，
+以世界模型预测并解码得到的过程状态为反馈，
+可滚动再规划且不依赖物理传感器；
+求解完成后，将所得完整速度曲线一次性下发设备开环执行。
 
 \begin{figure}[htbp]
 \centerline{\includegraphics[width=\linewidth]{frame-1.pdf}}
-\caption{The framework of this research.}
+\caption{本文研究总体框架。}
 \label{fig:framework}
 \end{figure}
+
+% ===== 第7段：研究贡献 =====
+本文的主要贡献如下：
+\begin{enumerate}
+    \item \textbf{面向锻造点云时序的隐空间世界模型。}
+    以低维隐状态联合承载几何与多物理场，
+    通过 Neural ODE 在连续时间上建模受控演化过程，
+    实现点云时变过程的重建与长时预测，
+    为决策训练与推理提供高效代理环境。
+    \item \textbf{基于世界模型的连续速度曲线安全决策。}
+    在世界模型内离线闭环求解，
+    生成满足损伤约束的光滑连续速度曲线，
+    再以开环方式一次性下发设备执行，
+    突破传统低维参数化方法的表达局限。
+    \item \textbf{实践验证。}
+    将所提方法应用于钛铝合金锻造场景，
+    在 DEFORM 仿真环境中验证了
+    世界模型预测精度与决策方案的有效性。
+\end{enumerate}
