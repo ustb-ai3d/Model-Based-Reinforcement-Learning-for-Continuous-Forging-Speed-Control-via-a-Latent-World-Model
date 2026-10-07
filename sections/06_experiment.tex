@@ -69,6 +69,22 @@
     \label{fig:other_speed}
 \end{figure}
 
+\textbf{对比方法}。作为低维参数化的代表，固定参数曲线将下压速度限定为“匀速—加速—匀速”的三段式形态，并以平滑四参数函数参数化：
+\begin{equation}
+v_{y}(t)=\begin{cases}
+v_{0}, & t<t_{0} \\
+v_{0}+(v_{1}-v_{0})\,\xi^{3}\,(10-15\xi+6\xi^{2}), & t_{0}\le t\le t_{1} \\
+v_{1}, & t>t_{1}
+\end{cases}
+\end{equation}
+其中 $\xi=(t-t_0)/(t_1-t_0)$，决策变量为 $\theta=\{v_0,v_1,t_0,t_1\}$（初始速度、目标速度与加速起止时刻），优化即在该参数空间内搜索；该函数在 $t_0$、$t_1$ 处具有二阶连续导数，保证加速过程平滑【CITE: Bambach 2018】。PSO 在同一条参数曲线上进行全局搜索，其决策耗时主要来自反复的适应度评估。
+
+\begin{figure}[htbp]
+\centerline{\includegraphics[width=\linewidth]{velocity_profile.pdf}}
+\caption{固定参数曲线的三段式形态。}
+\label{fig:speed_profile}
+\end{figure}
+
 进一步比较不同决策方式的过程性能与决策效率，各方式的速度曲线分别如图~\ref{fig:ours_speed} 和图~\ref{fig:other_speed} 所示，定量结果见表~\ref{tab:Method Comparison}。PSO 的过程质量最优，锻造时间最短、损伤为 0，但求解耗时长，难以满足实时性要求；固定参数曲线（PolicyNet）的锻造时间次短、给出决策的速度很快，但仿真中出现损伤，安全性得不到保证；本文闭环决策的锻造时间最长，但相对固定参数曲线仅略长，其决策因采用自回归逐步推理而略慢于固定参数的开环决策，仍明显快于 PSO，且仿真测试中不出现损伤。可见，本文方法以很小的锻造时间代价换取了无损伤的安全性，以及远优于 PSO 的决策速度。图~\ref{fig:PSO-Objective} 进一步展示了目标函数在寻优过程中的变化。
 
 \begin{table}[htbp]

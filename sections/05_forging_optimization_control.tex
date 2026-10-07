@@ -11,9 +11,9 @@
 
 \textbf{动作与曲线} 沿总行程取 $K+1$ 个节点 $s_i=i\,\Delta h/K$（$i=0,\dots,K$）。第 $i$ 个动作 $a_i=v_i$ 为节点 $s_i$ 处的速度；节点序列 $(v_0,\dots,v_K)$ 先拼成以行程为自变量的速度曲线
 \begin{equation}
-v(s)=\sum_{i=0}^{K}\varphi_i(s)\,v_i,\qquad s\in[0,\Delta h],
+v(s)=\sum_{i=0}^{K}b_i(s)\,v_i,\qquad s\in[0,\Delta h],
 \end{equation}
-其中 $\varphi_i(\cdot)$ 为插值基函数（取三次样条或保形的单调三次 Hermite），满足 $v(s_i)=v_i$。再将自变量由行程 $s$ 改为时间 $t$（由 $dt=ds/v(s)$），得到以 $t$ 为自变量的速度曲线
+其中 $b_i(\cdot)$ 为插值基函数（取三次样条或保形的单调三次 Hermite），满足 $v(s_i)=v_i$。再将自变量由行程 $s$ 改为时间 $t$（由 $dt=ds/v(s)$），得到以 $t$ 为自变量的速度曲线
 \begin{equation}
 v_y(t)=v\big(s(t)\big),
 \end{equation}
@@ -29,9 +29,9 @@ v_y(t)=v\big(s(t)\big),
 
 \textbf{奖励} 逐步权衡效率与质量：
 \begin{equation}
-r_k=w_1 e^{-\Delta t_k}-w_2 e^{\text{stress}_k},
+r_k=w_1 e^{-\Delta t_k}-w_2 e^{\sigma_k},
 \end{equation}
-其中 $\Delta t_k$ 为第 $k$ 段耗时，$\text{stress}_k$ 为该段应力水平，$w_1$、$w_2$ 为权重系数。
+其中 $\Delta t_k$ 为第 $k$ 段耗时，$\sigma_k$ 为该段的应力水平，$w_1$、$w_2$ 为权重系数。
 
 \textbf{代价} 刻画逐步损伤越限：
 \begin{equation}
@@ -46,9 +46,9 @@ d_k=\mathrm{relu}(D_k-D_{\text{cr}}),
 其中 $\gamma$ 为折扣因子。约束是逐步的，即要求每一步的损伤累积值均不越限（$D_k\le D_{\text{cr}}$）。
 
 \subsection{动作参数化}
-曲线由基函数以行程为自变量插值给出，$v(s)=\sum_{i=0}^{K}\varphi_i(s)v_i$，$s\in[0,\Delta h]$，其中 $\varphi_i$ 为插值基函数（取三次样条或保形的单调三次 Hermite），$v_i$ 为节点 $s_i=i\,\Delta h/K$ 处的速度值。该表示具有以下性质：
+曲线由基函数以行程为自变量插值给出，$v(s)=\sum_{i=0}^{K}b_i(s)v_i$，$s\in[0,\Delta h]$，其中 $b_i$ 为插值基函数（取三次样条或保形的单调三次 Hermite），$v_i$ 为节点 $s_i=i\,\Delta h/K$ 处的速度值。该表示具有以下性质：
 
-（1）\textbf{连续可导}：$\varphi_i$ 取三次样条时剖面 $C^2$ 连续（保形单调三次 Hermite 为 $C^1$），速度光滑、无加速度突跳。
+（1）\textbf{连续可导}：$b_i$ 取三次样条时剖面 $C^2$ 连续（保形单调三次 Hermite 为 $C^1$），速度光滑、无加速度突跳。
 
 （2）\textbf{决策维数可控}：节点数 $K+1$ 由降采样比例调节；单个节点的扰动在区间内被平滑分摊，不易产生高频抖动。
 
