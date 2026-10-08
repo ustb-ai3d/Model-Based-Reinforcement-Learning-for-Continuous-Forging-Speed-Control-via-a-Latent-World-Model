@@ -6,7 +6,7 @@
 因而锻造生产需在保证成形质量的前提下尽可能缩短锻造时间、提高产能。
 如图~\ref{fig:forging_press}所示，工件在上、下模具之间受压发生塑性变形，
 压机下压速度曲线通过控制应变速率影响热力耦合响应与材料动态软化行为~\cite{lin2011critical}，
-同时决定锻造时间（产能）与工件损伤（质量），并影响设备与模具损耗。
+同时决定锻造时间与工件损伤，进而影响产能与质量~\cite{bambach2018towards}。
 因此，如何设定压机下压速度曲线，是实现高效优质锻造的核心决策问题。
 
 \begin{figure}[htbp]
@@ -38,22 +38,23 @@
 要求状态表征既能重建几何与多物理场、又能刻画其随时间的演化。
 现有工业控制方法多基于低维工艺参数或标量观测，
 难以表征如此丰富的空间分布信息~\cite{stendal2024developing, dharmadhikari2023reinforcement}；
-而点云深度学习模型~\cite{qi2017pointnet} % TODO: PointNet++ \cite{qi2017pointnetpp}
+而点云深度学习模型~\cite{qi2017pointnet, qi2017pointnetpp}
 多面向静态场景的分类与分割，
-点云生成模型 % TODO: PCN \cite{yuan2018pcn}, FoldingNet \cite{yang2018foldingnet}, PointFlow \cite{li2019pointflow}
+点云生成模型~\cite{yuan2018pcn, yang2018foldingnet, li2019pointflow}
 虽能重建静态点云，但难以建模点云在工艺条件驱动下的时变演化过程。
 
 \textbf{演化预测。}
 锻造热变形具有连续时变特性，要求模型在连续时间上刻画其演化。
 传统有限元方法精度高，但单次求解耗时数小时至数天，
-难以支撑工艺迭代与参数优化； % TODO: FEM forging sim \cite{...
+难以支撑工艺迭代与参数优化~\cite{halici2014modelling}；
 端到端数据驱动模型只给出单次输入到输出的映射，
 不具备多步时序预测能力；
-现有数据驱动时序模型（如RNN、LSTM、Transformer）
-% TODO: 时序模型引用
+隐空间世界模型虽具备多步预测能力~\cite{hafner2020mastering}，但面向通用控制任务、尚未用于高维点云的多物理场演化建模；
+现有数据驱动时序模型，如 RNN、LSTM、Transformer~\cite{elman1990finding, hochreiter1997long, vaswani2017attention}，
 多以离散时间步建模，难以刻画锻造变形这种连续物理演化过程。
-Neural ODE~\cite{chen2018neural} % TODO: 确认引用
+Neural ODE~\cite{chen2018neural}
 提供了在连续时间上建模动力学的框架，
+并已在工业过程的连续时间建模中得到应用~\cite{yuan2022autonomous, yuan2023ode, yuan2022differential}，
 但其在高维点云时序预测中的应用尚未被充分探索。
 
 \textbf{决策。}
@@ -93,10 +94,10 @@ Neural ODE~\cite{chen2018neural} % TODO: 确认引用
 
 \textbf{阶段一｜世界模型训练。}
 采用编码器—推理器—解码器框架：
-PointNet~\cite{qi2017pointnet} % TODO: PointNet++ \cite{qi2017pointnetpp}
+PointNet~\cite{qi2017pointnet, qi2017pointnetpp}
 层级编码器将每步点云压缩为低维隐状态，
 联合承载几何与多物理场信息；
-以速度曲线为物理先验的 Neural ODE % TODO: \cite{chen2018neural}
+以速度曲线为物理先验的 Neural ODE~\cite{chen2018neural}
 在隐空间中建模连续时间动力学演化；
 解码器以首步几何为位移基底做残差重建，
 并以首步几何坐标回归物理场，
@@ -123,7 +124,7 @@ PointNet~\cite{qi2017pointnet} % TODO: PointNet++ \cite{qi2017pointnetpp}
 % ===== 第7段：研究贡献 =====
 本文的主要贡献如下：
 \begin{enumerate}
-    \item \textbf{面向锻造点云时序的隐空间世界模型。}
+    \item \textbf{面向锻造点云时序的锻造世界模型。}
     以低维隐状态联合承载几何与多物理场，
     通过 Neural ODE 在连续时间上建模受控演化过程，
     实现点云时变过程的重建与长时预测，
