@@ -1,9 +1,9 @@
 \section{Problem Formulation}
 
 \subsection{锻造变形序列与状态表征}
-铝合金锻造过程中，工件在上、下模具间受压发生塑性变形，其几何形状与温度、等效应力、损伤等物理量随变形历程同步且连续地演化。锻造历程中第 $k$ 步的工件状态以无序点云 $X_k \in \mathbb{R}^{N \times 6}$ 表示，采样点数 $N=5000$，每个点由绝对坐标 $\mathbf{p}_i=(x_i,y_i,z_i)$ 与温度 $T_i$、等效（von Mises）应力 $\sigma_i$、损伤 $D_i$ 三个物理场组成：
+铝合金锻造过程中，工件在上、下模具间受压发生塑性变形，其几何形状与温度、等效应力、损伤等物理量随变形历程同步且连续地演化。锻造历程中第 $k$ 步的工件状态以无序点云 $X_k \in \mathbb{R}^{N \times 6}$ 表示，采样点数 $N=5000$，每个点由绝对坐标 $p_i=(x_i,y_i,z_i)$ 与温度 $T_i$、等效（von Mises）应力 $\sigma_i$、损伤 $D_i$ 三个物理场组成：
 \begin{equation}
-X_k = \{\,(\mathbf{p}_i,\; T_i,\; \sigma_i,\; D_i)\,\}_{i=1}^{N}
+X_k = \{\,(p_i,\; T_i,\; \sigma_i,\; D_i)\,\}_{i=1}^{N}
 \label{equ:pointcloud}
 \end{equation}
 其中等效应力由六个应力分量按物理量纲合成：
