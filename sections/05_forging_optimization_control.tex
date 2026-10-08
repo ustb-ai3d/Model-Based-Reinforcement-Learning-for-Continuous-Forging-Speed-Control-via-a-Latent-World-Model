@@ -27,11 +27,16 @@ v_y(t)=v\big(s(t)\big),
 \end{equation}
 各段耗时由节点值决定，$\Delta t_k=\int_{s_k}^{s_{k+1}}ds/v(s)$：节点速度越大，该段耗时越短。
 
-\textbf{奖励} 逐步权衡效率与质量：
+\textbf{奖励} 逐步权衡效率与质量。第 $k$ 步由世界模型解码得到应力场 $\{\hat{\sigma}_i\}_{i=1}^{N}$，将其降序排列，前 $m$ 个值记为 $\hat{\sigma}_{(1)}\ge\hat{\sigma}_{(2)}\ge\cdots\ge\hat{\sigma}_{(m)}$，据此定义
 \begin{equation}
-r_k=w_1 e^{-\Delta t_k}-w_2 e^{\sigma_k},
+\bar{\sigma}_k=\frac{1}{m}\sum_{j=1}^{m}\hat{\sigma}_{(j)},\qquad
+u_k=\frac{\mathrm{std}(\hat{\sigma}_i)}{\mathrm{mean}(\hat{\sigma}_i)},
 \end{equation}
-其中 $\Delta t_k$ 为第 $k$ 段耗时，$\sigma_k$ 为该段的应力水平，$w_1$、$w_2$ 为权重系数。
+其中 $\bar{\sigma}_k$ 表征场应力水平的大小，$u_k$ 为应力场的变异系数，表征应力集中程度。奖励定义为
+\begin{equation}
+r_k=w_1 e^{-\Delta t_k}-w_2\,\bar{\sigma}_k-w_3\,u_k,
+\end{equation}
+其中 $\Delta t_k$ 为第 $k$ 段耗时，$w_1$、$w_2$、$w_3$ 为权重系数。应力水平越高、分布越不均匀，损伤演化越快；奖励对这两项施加惩罚，引导决策器在缩短锻造时间的同时将工件维持在低而均匀的应力状态，与损伤约束形成软引导与硬约束的互补。
 
 \textbf{代价} 刻画逐步损伤越限：
 \begin{equation}
@@ -75,7 +80,7 @@ a_k&=\mu_{\psi}(o_k)+\sigma_{\psi}(o_k)\odot\varepsilon,\quad \varepsilon\sim\ma
 \end{equation}
 其中 $r_k$ 为第 $k$ 步奖励，$d_k$ 为第 $k$ 步损伤越限量，$\lambda$ 为对偶变量。构造拉格朗日函数
 \begin{equation}
-L(\psi,\lambda)=\mathbb{E}\Big[\sum_{k}\gamma^{k}\ln \pi_{\psi}(a_k\mid o_k)\cdot A(o_k,a_k)\Big],
+\mathcal{L}(\psi,\lambda)=\mathbb{E}\Big[\sum_{k}\gamma^{k}\ln \pi_{\psi}(a_k\mid o_k)\cdot A(o_k,a_k)\Big],
 \end{equation}
 其中逐步优势函数为
 \begin{equation}
@@ -83,15 +88,15 @@ A(o_k,a_k)=\tilde r_k+\gamma\hat{V}(o_{k+1})-\hat{V}(o_k),
 \end{equation}
 $\hat{V}(o_k)$ 为价值估计（critic），其网络参数记为 $\phi$。价值网络以最小化一步时序差分（TD）误差训练，目标侧停止梯度：
 \begin{equation}
-L_{V}(\phi)=\mathbb{E}\Big[\big(\hat{V}(o_k)-\big[\tilde r_k+\gamma\,\mathrm{sg}(\hat{V}(o_{k+1}))\big]\big)^{2}\Big],
+\mathcal{L}_{V}(\phi)=\mathbb{E}\Big[\big(\hat{V}(o_k)-\big[\tilde r_k+\gamma\,\mathrm{sg}(\hat{V}(o_{k+1}))\big]\big)^{2}\Big],
 \end{equation}
 其中 $\mathrm{sg}(\cdot)$ 为停止梯度算子。为鼓励探索并防止过早收敛，加入逐步熵正则项：
 \begin{equation}
-J(\psi,\lambda)=L(\psi,\lambda)+\eta\,\mathbb{E}\Big[\sum_{k}\gamma^{k}H\big[\pi_{\psi}(\cdot\mid o_k)\big]\Big],
+\mathcal{J}(\psi,\lambda)=\mathcal{L}(\psi,\lambda)+\eta\,\mathbb{E}\Big[\sum_{k}\gamma^{k}H\big[\pi_{\psi}(\cdot\mid o_k)\big]\Big],
 \end{equation}
 其中 $\eta$ 为熵系数，$H[\cdot]$ 为策略熵。
 
-优化采用对偶梯度上升：先固定 $\lambda$、按 $\psi$ 最大化 $J$ 更新策略参数；再固定 $\psi$、依约束违反程度更新对偶变量
+优化采用对偶梯度上升：先固定 $\lambda$、按 $\psi$ 最大化 $\mathcal{J}$ 更新策略参数；再固定 $\psi$、依约束违反程度更新对偶变量
 \begin{equation}
 \lambda\leftarrow\max\big(0,\ \lambda+\alpha_{\lambda}\bar{d}\big),\qquad \bar{d}=\max_{k}\mathrm{relu}(D_k-D_{\text{cr}}),
 \end{equation}
