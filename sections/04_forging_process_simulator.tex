@@ -45,23 +45,28 @@ c_{k+1}=c_k+\int_{s_k}^{s_{k+1}} g\big(c(s),\,v_y(t(s))\big)\,ds ,
 其中 $s_k$ 与 $s_{k+1}$ 为相邻两步对应的行程，$c(s)$ 为沿行程演化的隐状态。该微分方程以四阶 Runge--Kutta 法求解，并配合伴随法进行反向传播。
 
 \subsection{几何—物理场联合解码器}
-解码器以首步几何为位移基底进行残差式几何重建，并以参考坐标查询回归物理场。记首步几何为 $R=\{r_i\}_{i=1}^{N}$（$r_i$ 为第 $i$ 个参考点的坐标），解码器以隐状态 $c_k$ 与各参考点 $r_i$ 为输入，对每个参考点同时输出位移与物理场。其中 $R$ 即该样本的首步点云（记为 $X_0$），是工件的初始几何；它在训练与推理阶段均为已知输入，并随初始工况逐样本变化。
-
-几何与物理场虽由同一隐状态 $c_k$ 驱动，但二者的输出语义与 $r_i$ 的作用不同：几何以 $r_i$ 为位移基底、需保证初始形状还原与物质点对应；物理场以 $r_i$ 为查询坐标、需回归物质点上的物理量。因此本文采用“共享隐状态、分头解码”的设计，既避免两类任务相互干扰（其量纲与损失尺度亦不同），又因共享 $c_k$ 使二者在物理上相互约束。下面分别介绍两条分支。
-
-\textbf{几何分支。} 以首步几何 $R$ 为硬基线，网络仅预测相对位移：
+解码器采用 DeepONet 结构~\cite{lu2021deeponet}，学习一个由隐状态到“位移—物理场”映射的算子 $\mathrm{Dec}$：branch 网络以隐状态 $c_k$ 为输入，trunk 网络以参考坐标 $r_i$ 为查询点，经张量融合后由共享输出层同时给出该点的位移与物理场。解码器的整体结构如图~\ref{fig:decoder} 所示。以查询坐标作为 trunk 输入，使解码器可对任意参考点查询、并在各点间共享空间基，从而以单一网络刻画整个点云上的场分布。记首步几何为 $R=\{r_i\}_{i=1}^{N}$（$r_i$ 为第 $i$ 个参考点的坐标），即该样本的首步点云（记为 $X_0$）、工件的初始几何；它在训练与推理阶段均为已知输入，并随初始工况逐样本变化。解码器对每个参考点的逐点作用为
 \begin{equation}
-\Delta p_i=\mathrm{disp}\big([\,r_i;\ c_k\,]\big),\qquad \hat{p}_i=r_i+\Delta p_i .
+\begin{aligned}
+\hat{y}_i&=\big(\hat{T}_i,\ \hat{\sigma}_i,\ \hat{D}_i\big),\\
+\big[\,\Delta p_i;\ \hat{y}_i\,\big]&=W\big(f_{b}(c_k)\otimes f_{t}(r_i)\big)+b,
+\end{aligned}
 \end{equation}
-其中 $\mathrm{disp}(\cdot)$ 为位移预测网络，$\Delta p_i$ 为参考点 $i$ 的预测位移，$\hat{p}_i$ 为重建坐标。零变形时 $\Delta p_i\approx0$，即 $\hat{p}_i\approx r_i$；这一残差形式把“重建几何”转化为“学习位移”，既降低了学习难度，又保证初始形状被精确还原。
+其中 $f_{b}(\cdot)$、$f_{t}(\cdot)$ 分别为 branch 网络与 trunk 网络，$W$、$b$ 为输出层的权重与偏置，$\Delta p_i$ 为参考点 $i$ 的位移预测，$\hat{T}_i$、$\hat{\sigma}_i$、$\hat{D}_i$ 分别为温度、等效应力与损伤的预测值。记 $\mathrm{Dec}(c_k)$ 为由 $c_k$ 生成的完整点云，其对任一参考点 $r_i$ 的逐点作用即为上式；位移与物理场由同一隐状态经共享输出层耦合输出，在物理上相互约束。
 
-\textbf{物理场分支。} 以同一参考坐标 $r_i$ 为查询点，回归三个物理场：
+\begin{figure}[htbp]
+\centerline{\includegraphics[width=\linewidth]{decoder.pdf}}
+\caption{解码器架构示意图。}
+\label{fig:decoder}
+\end{figure}
+
+\textbf{几何。} 以首步几何 $R$ 为硬基线，网络仅预测相对位移：
 \begin{equation}
-\hat{y}_i=\mathrm{field}\big([\,r_i;\ c_k\,]\big)=\big(\hat{T}_i,\ \hat{\sigma}_i,\ \hat{D}_i\big)\in\mathbb{R}^{3} .
+\hat{p}_i=r_i+\Delta p_i .
 \end{equation}
-其中 $\mathrm{field}(\cdot)$ 为物理场回归网络，$\hat{y}_i$ 为参考点 $i$ 的物理场预测，$\hat{T}_i$、$\hat{\sigma}_i$、$\hat{D}_i$ 分别为温度、等效应力与损伤的预测值。由于查询坐标在训练与推理时恒取首步几何 $R$ 中对应的参考点 $r_i$（索引即物质点身份），两阶段的输入分布保持一致，避免了几何演变带来的分布漂移。
+零变形时 $\Delta p_i\approx0$，即 $\hat{p}_i\approx r_i$；这一残差形式把“重建几何”转化为“学习位移”，既降低了学习难度，又保证初始形状被精确还原。
 
-\textbf{联合输出。} 两分支共享同一隐状态 $c_k$，逐点联合输出重建点云：
+\textbf{物理场。} 以同一参考坐标 $r_i$ 为查询点回归三个物理场。由于查询坐标在训练与推理时恒取首步几何 $R$ 中对应的参考点 $r_i$（索引即物质点身份），两阶段的输入分布保持一致，避免了几何演变带来的分布漂移。据此，几何与物理场在同一隐状态下逐点联合输出重建点云：
 \begin{equation}
 \hat{X}_k=\big\{\,(\hat{p}_i,\ \hat{y}_i)\,\big\}_{i=1}^{N},
 \end{equation}
