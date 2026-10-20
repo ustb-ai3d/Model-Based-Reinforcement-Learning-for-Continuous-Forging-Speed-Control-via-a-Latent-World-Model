@@ -1,7 +1,7 @@
 \section{Forging World Model}
 \label{sec:world_model}
 
-锻造变形序列的几何与多物理场随变形历程连续演化。为以低维隐状态联合承载几何与温度、等效应力、损伤等信息，并支持连续时间的自回归推演，本文构建“编码器—推理器—解码器”（Encoder--Inferencer--Decoder）框架的锻造世界模型：编码器 $E$ 将第 $k$ 步点云 $X_k$ 映射为隐状态 $c_k=E(X_k)\in\mathbb{R}^{d}$，作为该步工件（几何与多物理场）的紧凑快照；推理器 $g$ 以下压速度曲线为条件，在增广空间中建模隐状态的连续演化；解码器 $\mathrm{Dec}$ 由隐状态重建点云 $\hat{X}_k=\mathrm{Dec}(c_k)$。由此，世界模型同时具备重建与预测两种能力：前者保证隐状态可高保真还原为几何—多物理场点云，后者保证其可沿工艺参数自回归推演。世界模型的总体框架如图~\ref{fig:world_model} 所示。
+锻造变形序列的几何与多物理场随变形历程连续演化。为以低维隐状态联合承载几何与温度、等效应力、损伤等信息，并支持连续时间的自回归推演，本文构建“编码器—推理器—解码器”（Encoder--Inferencer--Decoder）框架的锻造世界模型：编码器 $E:\mathbb{R}^{N\times 6}\to\mathbb{R}^{d}$ 将第 $k$ 步点云 $X_k\in\mathbb{R}^{N\times 6}$ 映射为隐状态 $c_k=E(X_k)\in\mathbb{R}^{d}$，作为该步工件（几何与多物理场）的紧凑快照；推理器 $g:\mathbb{R}^{d}\times\mathbb{R}\to\mathbb{R}^{d}$ 以下压速度曲线为条件，在增广空间中建模隐状态的连续演化；解码器 $\mathrm{Dec}$ 由隐状态重建点云 $\hat{X}_k=\mathrm{Dec}(c_k)\in\mathbb{R}^{N\times 6}$。由此，世界模型同时具备重建与预测两种能力：前者保证隐状态可高保真还原为几何—多物理场点云，后者保证其可沿工艺参数自回归推演。世界模型的总体框架如图~\ref{fig:world_model} 所示。
 \begin{figure}[htbp]
 \centerline{\includegraphics[width=\linewidth]{world_model_framework_wide.pdf}}
 \caption{锻造世界模型的总体框架：编码器 $E$ 将点云映射为隐状态 $c_k$，推理器 $g$ 以速度曲线为条件沿行程积分推进隐状态，解码器 $\mathrm{Dec}$ 由隐状态重建几何—多物理场点云。}
@@ -9,7 +9,7 @@
 \end{figure}
 
 \subsection{点云编码器}
-将第 $k$ 步点云记为 $X_k=\{[\,p_i;\ h_i\,]\}_{i=1}^{N}$，其中 $p_i\in\mathbb{R}^{3}$ 为绝对坐标，$h_i=(T_i,\sigma_i,D_i)\in\mathbb{R}^{3}$ 为该点的温度、等效应力与损伤，与式~\ref{equ:pointcloud}~的定义一致。编码器基于 PointNet++ 的层级结构，以“采样—分组—局部聚合”逐级提取特征。
+将第 $k$ 步点云记为 $X_k=\{[\,p_i;\ h_i\,]\}_{i=1}^{N}\in\mathbb{R}^{N\times 6}$，其中 $p_i\in\mathbb{R}^{3}$ 为绝对坐标，$h_i=(T_i,\sigma_i,D_i)\in\mathbb{R}^{3}$ 为该点的温度、等效应力与损伤，与式~\ref{equ:pointcloud}~的定义一致。编码器基于 PointNet++ 的层级结构，以“采样—分组—局部聚合”逐级提取特征。
 
 首先以最远点采样（FPS）按几何确定性地选取中心点。记已选中心点集合为 $S_{m-1}$（初值 $S_0$ 任取一点），则第 $m$ 个中心点为
 \begin{equation}
@@ -23,7 +23,7 @@ p_{m}=\arg\max_{p\in\{p_i\}}\ \min_{p'\in S_{m-1}}\big\|p-p'\big\|_{2},\qquad S_
 \begin{equation}
 f_i=\max_{j\in\Omega_i}\ \mathrm{MLP}\big([\,h_j;\ p_j-p_i\,]\big),
 \end{equation}
-其中 $f_i$ 为中心点 $i$ 的局部特征，$p_j-p_i$ 为邻域点 $j$ 相对中心点的坐标，$h_j$ 为点 $j$ 的物理场特征（首层）。重复上述“采样—分组—聚合”共 $n_{\text{SA}}$ 级，感受野由局部逐级扩展至全局。
+其中 $f_i\in\mathbb{R}^{d_1}$ 为中心点 $i$ 的局部特征（$d_1$ 为首级特征维度），$p_j-p_i\in\mathbb{R}^{3}$ 为邻域点 $j$ 相对中心点的坐标，$h_j\in\mathbb{R}^{3}$ 为点 $j$ 的物理场特征（首层）。重复上述“采样—分组—聚合”共 $n_{\text{SA}}$ 级，感受野由局部逐级扩展至全局。
 
 最后对末级特征做全局最大池化并经 MLP 映射，得到承载整件工件状态的低维隐状态：
 \begin{equation}
@@ -38,21 +38,21 @@ c_k=\mathrm{MLP}\Big(\max_{i} f_i^{(n_{\text{SA}})}\Big)\in\mathbb{R}^{d} .
 \begin{equation}
 \frac{dc}{ds}=g\big(c,\,v_y(t)\big),\qquad \frac{dt}{ds}=\frac{1}{v_y(t)} ,
 \end{equation}
-其中 $c$ 为隐状态，$g(\cdot)$ 为待学习的向量场（由 MLP 参数化）。可见推理器沿行程 $s$ 逐步积分，而速度曲线以物理时间 $t$ 为自变量给出；二者由 $ds=v_y(t)\,dt$（等价 $dt/ds=1/v_y(t)$）相互换算，物理时间 $t$ 作为增广状态随积分同步推进，即积分步长取位移、速度以时间为横轴表示。速度曲线由此作为物理先验被嵌入时间尺度变换，使预测的时间尺度与真实工艺一致。相邻两步的隐状态通过对区间积分得到：
+其中 $c\in\mathbb{R}^{d}$ 为隐状态，$g:\mathbb{R}^{d}\times\mathbb{R}\to\mathbb{R}^{d}$ 为待学习的向量场（由 MLP 参数化），$t$、$s$ 分别为物理时间与行程。可见推理器沿行程 $s$ 逐步积分，而速度曲线以物理时间 $t$ 为自变量给出；二者由 $ds=v_y(t)\,dt$（等价 $dt/ds=1/v_y(t)$）相互换算，物理时间 $t$ 作为增广状态随积分同步推进，即积分步长取位移、速度以时间为横轴表示。速度曲线由此作为物理先验被嵌入时间尺度变换，使预测的时间尺度与真实工艺一致。相邻两步的隐状态通过对区间积分得到：
 \begin{equation}
 c_{k+1}=c_k+\int_{s_k}^{s_{k+1}} g\big(c(s),\,v_y(t(s))\big)\,ds ,
 \end{equation}
 其中 $s_k$ 与 $s_{k+1}$ 为相邻两步对应的行程，$c(s)$ 为沿行程演化的隐状态。该微分方程以四阶 Runge--Kutta 法求解，并配合伴随法进行反向传播。
 
 \subsection{几何—物理场联合解码器}
-解码器采用 DeepONet 结构~\cite{lu2021deeponet}，学习一个由隐状态到“位移—物理场”映射的算子 $\mathrm{Dec}$：branch 网络以隐状态 $c_k$ 为输入，trunk 网络以参考坐标 $r_i$ 为查询点，经张量融合后由共享输出层同时给出该点的位移与物理场。解码器的整体结构如图~\ref{fig:decoder} 所示。以查询坐标作为 trunk 输入，使解码器可对任意参考点查询、并在各点间共享空间基，从而以单一网络刻画整个点云上的场分布。记首步几何为 $R=\{r_i\}_{i=1}^{N}$（$r_i$ 为第 $i$ 个参考点的坐标），即该样本的首步点云（记为 $X_0$）、工件的初始几何；它在训练与推理阶段均为已知输入，并随初始工况逐样本变化。解码器对每个参考点的逐点作用为
+解码器采用 DeepONet 结构~\cite{lu2021deeponet}，学习一个由隐状态到“位移—物理场”映射的算子 $\mathrm{Dec}$：branch 网络以隐状态 $c_k$ 为输入，trunk 网络以参考坐标 $r_i$ 为查询点，经张量融合后由共享输出层同时给出该点的位移与物理场。解码器的整体结构如图~\ref{fig:decoder} 所示。以查询坐标作为 trunk 输入，使解码器可对任意参考点查询、并在各点间共享空间基，从而以单一网络刻画整个点云上的场分布。记首步几何为 $R=\{r_i\}_{i=1}^{N}$（$r_i\in\mathbb{R}^{3}$ 为第 $i$ 个参考点的坐标），即该样本的首步点云（记为 $X_0$）、工件的初始几何；它在训练与推理阶段均为已知输入，并随初始工况逐样本变化。解码器对每个参考点的逐点作用为
 \begin{equation}
 \begin{aligned}
 \hat{y}_i&=\big(\hat{T}_i,\ \hat{\sigma}_i,\ \hat{D}_i\big),\\
 \big[\,\Delta p_i;\ \hat{y}_i\,\big]&=W\big(f_{b}(c_k)\otimes f_{t}(r_i)\big)+b,
 \end{aligned}
 \end{equation}
-其中 $f_{b}(\cdot)$、$f_{t}(\cdot)$ 分别为 branch 网络与 trunk 网络，$W$、$b$ 为输出层的权重与偏置，$\Delta p_i$ 为参考点 $i$ 的位移预测，$\hat{T}_i$、$\hat{\sigma}_i$、$\hat{D}_i$ 分别为温度、等效应力与损伤的预测值。记 $\mathrm{Dec}(c_k)$ 为由 $c_k$ 生成的完整点云，其对任一参考点 $r_i$ 的逐点作用即为上式；位移与物理场由同一隐状态经共享输出层耦合输出，在物理上相互约束。
+其中 $f_{b}:\mathbb{R}^{d}\to\mathbb{R}^{P\times C}$、$f_{t}:\mathbb{R}^{3}\to\mathbb{R}^{P}$ 分别为 branch 网络与 trunk 网络，$P$ 为空间基个数，$C=6$ 为输出通道数（3 维位移与 3 个物理场）；$W\in\mathbb{R}^{C\times(PC)}$、$b\in\mathbb{R}^{C}$ 为输出层的权重与偏置；$\Delta p_i\in\mathbb{R}^{3}$ 为参考点 $i$ 的位移预测，$\hat{T}_i$、$\hat{\sigma}_i$、$\hat{D}_i$ 分别为温度、等效应力与损伤的预测值。记 $\mathrm{Dec}(c_k)$ 为由 $c_k$ 生成的完整点云，其对任一参考点 $r_i$ 的逐点作用即为上式；位移与物理场由同一隐状态经共享输出层耦合输出，在物理上相互约束。
 
 \begin{figure}[htbp]
 \centerline{\includegraphics[width=\linewidth]{decoder.pdf}}
@@ -70,7 +70,7 @@ c_{k+1}=c_k+\int_{s_k}^{s_{k+1}} g\big(c(s),\,v_y(t(s))\big)\,ds ,
 \begin{equation}
 \hat{X}_k=\big\{\,(\hat{p}_i,\ \hat{y}_i)\,\big\}_{i=1}^{N},
 \end{equation}
-从而在同一隐状态下联合重建形状与多物理场，强化几何与场的物理一致性。
+从而得到 $\hat{X}_k\in\mathbb{R}^{N\times 6}$，在同一隐状态下联合重建形状与多物理场，强化几何与场的物理一致性。
 
 \subsection{训练目标}
 世界模型采用单阶段联合训练，端到端优化编码器、推理器与解码器，目标由三部分构成：
