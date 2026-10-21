@@ -46,7 +46,7 @@
 
 \begin{figure}[htbp]
 \centerline{\includegraphics[width=\linewidth]{speed_close.pdf}}
-\caption{本文方法（闭环策略）在不同初始温度场下生成的速度曲线（$474\,^{\circ}\mathrm{C}$--$500\,^{\circ}\mathrm{C}$）。}
+\caption{本文方法在不同初始温度场下生成的速度曲线（$474\,^{\circ}\mathrm{C}$--$500\,^{\circ}\mathrm{C}$）。}
 \label{fig:ours_speed}
 \end{figure}
 
@@ -85,7 +85,7 @@ v_{1}, & t>t_{1}
 \label{fig:speed_profile}
 \end{figure}
 
-进一步比较不同决策方式的过程性能与决策效率，各方式的速度曲线分别如图~\ref{fig:ours_speed} 和图~\ref{fig:other_speed} 所示，定量结果见表~\ref{tab:Method Comparison}。PSO 的过程质量最优，锻造时间最短、损伤为 0，但求解耗时长，难以满足实时性要求；固定参数曲线（PolicyNet）的锻造时间次短、给出决策的速度很快，但仿真中出现损伤，安全性得不到保证；本文闭环决策的锻造时间最长，但相对固定参数曲线仅略长，其决策因采用自回归逐步推理而略慢于固定参数的开环决策，仍明显快于 PSO，且仿真测试中不出现损伤。可见，本文方法以很小的锻造时间代价换取了无损伤的安全性，以及远优于 PSO 的决策速度。图~\ref{fig:PSO-Objective} 进一步展示了目标函数在寻优过程中的变化。
+进一步比较不同决策方式的过程性能与决策效率，各方式的速度曲线分别如图~\ref{fig:ours_speed} 和图~\ref{fig:other_speed} 所示，定量结果见表~\ref{tab:Method Comparison}。PSO 的过程质量最优，锻造时间最短、损伤为 0，但求解耗时长，难以满足生产前的快速决策要求；固定参数曲线（PolicyNet）的锻造时间次短、给出决策的速度很快，但仿真中出现损伤，安全性得不到保证；本文方法的锻造时间最长，但相对固定参数曲线仅略长，其决策因采用自回归逐步推理而略慢于固定参数曲线的单发决策，仍明显快于 PSO，且仿真测试中不出现损伤。可见，本文方法以很小的锻造时间代价换取了无损伤的安全性，以及远优于 PSO 的决策速度。图~\ref{fig:PSO-Objective} 进一步展示了目标函数在寻优过程中的变化。
 
 \begin{table}[htbp]
 \centering
@@ -96,7 +96,7 @@ v_{1}, & t>t_{1}
 \textbf{Method} & \textbf{Forge Time} & \textbf{Decision Time} & \textbf{Damage Rate}\\
 & (mean$\pm$std,ms) & (mean$\pm$std,ms) & (\%)\\
 \midrule
-闭环决策   & 126.28$\pm$4.56 & 105.21$\pm$4.13 & 0.00 \\
+本文方法   & 126.28$\pm$4.56 & 105.21$\pm$4.13 & 0.00 \\
 固定参数   & 123.08$\pm$1.92 & 97.37$\pm$3.86 & 8.00 \\
 PSO        & 108.72$\pm$11.55 & 2580$\pm$1370 & 0.00 \\
 \bottomrule
@@ -109,6 +109,6 @@ PSO        & 108.72$\pm$11.55 & 2580$\pm$1370 & 0.00 \\
 \caption{Objective function comparison.}
 \label{fig:PSO-Objective}
 \end{figure}
-% 【占位图：PSO-Objective-2.pdf 暂作占位，后续替换为闭环与开环的目标函数对比】
+% 【占位图：PSO-Objective-2.pdf 暂作占位，后续替换为逐步求解与单发求解的目标函数对比】
 
-综上，PSO 与固定参数曲线分别在决策效率与安全性上存在不足，而本文闭环决策在保证无损伤的同时保持了可接受的锻造时间与远优于 PSO 的决策速度，更适用于实际锻造工况。
+综上，PSO 与固定参数曲线分别在决策效率与安全性上存在不足，而本文方法在保证无损伤的同时保持了可接受的锻造时间与远优于 PSO 的决策速度，更适用于实际锻造工况。
