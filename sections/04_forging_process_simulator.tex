@@ -85,15 +85,15 @@ c_{k+1}=c_k+\int_{s_k}^{s_{k+1}} g\big(c(s),\,v_y(t(s))\big)\,ds ,
 \begin{equation}
 \mathcal{L}_{\text{pred}}=\mathbb{E}\Big[\big\|\hat{c}_{k+1}-\mathrm{sg}(c_{k+1})\big\|^{2}\Big] .
 \end{equation}
-多步 rollout 损失用于增强长时预测稳定性：从第 $k$ 步出发自回归展开 $M$ 步，过程中逐步以预测隐状态推进（而非使用真实编码），再以展开终点与对应步的真实编码计算损失：
+多步 rollout 损失用于增强长时预测稳定性：从第 $k$ 步出发自回归展开 $M$ 步，过程中逐步以预测隐状态推进（而非使用真实编码），并对展开路径上每一步的预测隐状态与该步真实编码计算损失：
 \begin{equation}
-\mathcal{L}_{\text{rollout}}=\mathbb{E}\Big[\sum_{k}\big\|\hat{c}_{k}^{(M)}-\mathrm{sg}(c_{k+M})\big\|^{2}\Big],
+\mathcal{L}_{\text{rollout}}=\mathbb{E}\Big[\sum_{k}\sum_{j=1}^{M}\big\|\hat{c}_{k}^{(j)}-\mathrm{sg}(c_{k+j})\big\|^{2}\Big],
 \end{equation}
 其中自回归展开为
 \begin{equation}
 \begin{aligned}
 \hat{c}_{k}^{(0)} &= \mathrm{sg}(c_k), \\
-\hat{c}_{k}^{(m+1)} &= \hat{c}_{k}^{(m)}+\int_{s_{k+m}}^{s_{k+m+1}} g\big(\hat{c}_{k}^{(m)},\,v_y(t(s))\big)\,ds ,
+\hat{c}_{k}^{(j+1)} &= \hat{c}_{k}^{(j)}+\int_{s_{k+j}}^{s_{k+j+1}} g\big(\hat{c}_{k}^{(j)},\,v_y(t(s))\big)\,ds ,
 \end{aligned}
 \end{equation}
-$\hat{c}_{k}^{(M)}$ 为展开 $M$ 步后的预测隐状态，$c_{k+M}=E(X_{k+M})$ 为对应步的真实编码。
+$\hat{c}_{k}^{(j)}$ 为自第 $k$ 步展开 $j$ 步后的预测隐状态，$c_{k+j}=E(X_{k+j})$ 为对应步的真实编码；展开路径上每一步的预测均直接受该步真实编码的监督。
