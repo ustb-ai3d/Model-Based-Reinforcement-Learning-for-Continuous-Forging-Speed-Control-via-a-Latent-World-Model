@@ -17,7 +17,32 @@
 \label{fig:model_result}
 \end{figure}
 
-进一步在测试集上量化误差。推理时沿用同一向量场，只把积分区间加粗：将 67 个变形步对应的总行程均分为 13 段，每一段用一次积分直接从段首推进到段末，解码后得到该处的点云；训练时则按变形步逐步推进。几何误差按逐点、三轴平均的 MSE 计算，物理场误差逐通道计算后取平均，归一化所用的均值与方差取自训练集，误差在上述 13 个段末位置与对应有限元结果逐点比较。该推演方式下几何的均方根误差为 1.63 mm，对应归一化 MSE $6.4\times10^{-4}$；温度、等效应力与损伤的均方根误差分别为 8.8 $^{\circ}$C、6.3 MPa 与 $4.7\times10^{-3}$，归一化 MSE 依次为 0.104、0.115 与 0.022，逐通道平均 0.080。三个通道中，等效应力的归一化误差最高，温度次之，损伤最低。等效应力由应变速率与温度共同决定、依赖整个变形历程，是三个场中对工艺条件最敏感的一个；温度以热传导为主、分布平缓，相对更易拟合；损伤仅在局部累积、多数点接近零，逐点误差被大量近零点稀释，故归一化误差最低。决策阶段需要反复推演整条曲线，粗粒度积分使单次推演的积分与解码次数降为逐步推进的 $1/5$，从而支撑在世界模型内的闭环求解。
+进一步在测试集上量化误差。推理时沿用同一向量场，只把积分区间加粗：将 67 个变形步对应的总行程均分为 13 段，每一段用一次积分直接从段首推进到段末，解码后得到该处的点云；训练时则按变形步逐步推进。几何误差按逐轴均方根误差以 mm 计，物理场误差按各场在训练集上的均值与方差归一化、逐通道计算后取平均，误差均在 13 个段末位置与对应有限元结果逐点比较。该推演方式下几何的逐轴均方根误差为 1.63 mm，三个物理场的归一化 MSE 平均为 0.080，逐通道结果见表~\ref{tab:model_error}。三个通道中，等效应力的归一化误差最高，温度次之，损伤最低。等效应力由应变速率与温度共同决定、依赖整个变形历程，是三个场中对工艺条件最敏感的一个；温度以热传导为主、分布平缓，相对更易拟合；损伤仅在局部累积、多数点接近零，逐点误差被大量近零点稀释，故归一化误差最低。决策阶段需要反复推演整条曲线，粗粒度积分使单次推演的积分与解码次数降为逐步推进的 $1/5$，从而支撑在世界模型内的闭环求解。
+
+\begin{table}[htbp]
+\centering
+\caption{Prediction errors of the overall methods and single-module variants}
+\label{tab:model_error}
+\setlength{\tabcolsep}{1.5pt}
+\footnotesize
+\begin{tabular}{l c c c c c}
+\toprule
+ & Geometry & \multicolumn{3}{c}{Normalized MSE} & Field \\
+Model & RMSE (mm) & Temp. & von Mises & Dmg. & avg. \\
+\midrule
+\multicolumn{6}{l}{\textit{Overall methods}} \\
+Ours & 1.63 & 0.104 & 0.115 & 0.022 & 0.080 \\
+DeepONet (no latent) & 1.57 & 0.129 & 0.255 & 0.031 & 0.138 \\
+\midrule
+\multicolumn{6}{l}{\textit{Single-module variants}} \\
+RNN predictor & -- & -- & -- & -- & -- \\
+MLP decoder & -- & -- & -- & -- & -- \\
+\bottomrule
+\end{tabular}
+
+\vspace{2pt}
+{\footnotesize Note: geometry is reported as per-axis RMSE in mm; the normalized MSE of each field uses training-set statistics; field avg.\ is the mean over the three field channels and excludes geometry. All metrics are averaged over the 13-step coarse rollout on the test set. Physical RMSE of the full model: 8.8\,$^{\circ}$C (temperature), 6.3 MPa (von Mises), $4.7\times10^{-3}$ (damage).}
+\end{table}
 
 训练集上的同口径误差为几何 1.87 mm、温度 9.7 $^{\circ}$C、等效应力 7.9 MPa、损伤 $5.6\times10^{-3}$，略高于测试集。原因在于训练集覆盖的温度与变形区间更宽，且归一化统计量取自训练集；两集合误差处于同一量级、各通道偏差方向一致，未出现训练集显著优于测试集的过拟合迹象。
 
@@ -54,6 +79,22 @@
 \label{fig:ours_speed}
 \end{figure}
 
+\textbf{对比方法}。作为低维参数化的代表，固定参数曲线将下压速度限定为“匀速—加速—匀速”的三段式形态，并以平滑四参数函数参数化：
+\begin{equation}
+v_{y}(t)=\begin{cases}
+v_{0}, & t<t_{0} \\
+v_{0}+(v_{1}-v_{0})\,\xi^{3}\,(10-15\xi+6\xi^{2}), & t_{0}\le t\le t_{1} \\
+v_{1}, & t>t_{1}
+\end{cases}
+\end{equation}
+其中 $\xi=(t-t_0)/(t_1-t_0)$，决策变量为 $\theta=\{v_0,v_1,t_0,t_1\}$（初始速度、目标速度与加速起止时刻），优化即在该参数空间内搜索；该函数在 $t_0$、$t_1$ 处具有二阶连续导数，保证加速过程平滑。PSO 在同一条参数曲线上进行全局搜索，其决策耗时主要来自反复的适应度评估。
+
+\begin{figure}[htbp]
+\centerline{\includegraphics[width=\linewidth]{velocity_profile.pdf}}
+\caption{固定参数曲线的三段式形态。}
+\label{fig:speed_profile}
+\end{figure}
+
 \begin{figure}[htbp]
     \centering
     \begin{subfigure}{0.48\columnwidth}
@@ -71,22 +112,6 @@
     \end{subfigure}
     \caption{与其他决策方式的速度曲线对比（$474\,^{\circ}\mathrm{C}$--$500\,^{\circ}\mathrm{C}$）。}
     \label{fig:other_speed}
-\end{figure}
-
-\textbf{对比方法}。作为低维参数化的代表，固定参数曲线将下压速度限定为“匀速—加速—匀速”的三段式形态，并以平滑四参数函数参数化：
-\begin{equation}
-v_{y}(t)=\begin{cases}
-v_{0}, & t<t_{0} \\
-v_{0}+(v_{1}-v_{0})\,\xi^{3}\,(10-15\xi+6\xi^{2}), & t_{0}\le t\le t_{1} \\
-v_{1}, & t>t_{1}
-\end{cases}
-\end{equation}
-其中 $\xi=(t-t_0)/(t_1-t_0)$，决策变量为 $\theta=\{v_0,v_1,t_0,t_1\}$（初始速度、目标速度与加速起止时刻），优化即在该参数空间内搜索；该函数在 $t_0$、$t_1$ 处具有二阶连续导数，保证加速过程平滑。PSO 在同一条参数曲线上进行全局搜索，其决策耗时主要来自反复的适应度评估。
-
-\begin{figure}[htbp]
-\centerline{\includegraphics[width=\linewidth]{velocity_profile.pdf}}
-\caption{固定参数曲线的三段式形态。}
-\label{fig:speed_profile}
 \end{figure}
 
 进一步比较不同决策方式的过程性能与决策效率，各方式的速度曲线分别如图~\ref{fig:ours_speed} 和图~\ref{fig:other_speed} 所示，定量结果见表~\ref{tab:Method Comparison}。PSO 的过程质量最优，锻造时间最短、损伤为 0，但求解耗时长，难以满足生产前的快速决策要求；固定参数曲线（PolicyNet）的锻造时间次短、给出决策的速度很快，但仿真中出现损伤，安全性得不到保证；本文方法的锻造时间最长，但相对固定参数曲线仅略长，其决策因采用自回归逐步推理而略慢于固定参数曲线的单发决策，仍明显快于 PSO，且仿真测试中不出现损伤。可见，本文方法以很小的锻造时间代价换取了无损伤的安全性，以及远优于 PSO 的决策速度。图~\ref{fig:PSO-Objective} 进一步展示了目标函数在寻优过程中的变化。
