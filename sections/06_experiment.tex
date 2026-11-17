@@ -71,11 +71,11 @@ MLP decoder & -- & -- & -- & -- & -- \\
     \label{fig:combined_curves}
 \end{figure}
 
-图~\ref{fig:ours_speed} 给出了本文方法在不同初始温度场下生成的速度曲线。当初始温度由 $474\,^{\circ}\mathrm{C}$ 升至 $500\,^{\circ}\mathrm{C}$ 时，速度曲线的加速段提前、锻造时间缩短，表明决策器能够依据初始温度场自适应地调整速度曲线，以利用材料的高温软化特性。
+图~\ref{fig:ours_speed} 给出了本文方法在不同初始温度场下生成的速度曲线及损伤曲线。当初始温度由 $474\,^{\circ}\mathrm{C}$ 升至 $500\,^{\circ}\mathrm{C}$ 时，速度曲线的加速段提前、锻造时间缩短，表明决策器能够依据初始温度场自适应地调整速度曲线，以利用材料的高温软化特性；损伤曲线随变形逐渐上升、末步达到峰值，其与临界损伤值 $D_{\text{cr}}$ 的比值仍小于 1.0，表明损伤整体得到控制。
 
 \begin{figure}[htbp]
-\centerline{\includegraphics[width=\linewidth]{speed_close.pdf}}
-\caption{本文方法在不同初始温度场下生成的速度曲线（$474\,^{\circ}\mathrm{C}$--$500\,^{\circ}\mathrm{C}$）。}
+\centerline{\includegraphics[width=\linewidth]{speed_close_withDamage.pdf}}
+\caption{本文方法在不同初始温度场下生成的速度曲线与损伤曲线（$474\,^{\circ}\mathrm{C}$--$500\,^{\circ}\mathrm{C}$）。损伤曲线取每步点云中损伤最大的前 50 个点的平均。}
 \label{fig:ours_speed}
 \end{figure}
 
@@ -100,7 +100,7 @@ v_{1}, & t>t_{1}
     \begin{subfigure}{0.48\columnwidth}
         \centering
         \includegraphics[width=\linewidth]{speed_open.pdf}
-        \caption{PolicyNet}
+        \caption{固定参数曲线}
         \label{fig:policynet_speed}
     \end{subfigure}
     \hfill
@@ -114,7 +114,7 @@ v_{1}, & t>t_{1}
     \label{fig:other_speed}
 \end{figure}
 
-进一步比较不同决策方式的过程性能与决策效率，各方式的速度曲线分别如图~\ref{fig:ours_speed} 和图~\ref{fig:other_speed} 所示，定量结果见表~\ref{tab:Method Comparison}。PSO 的过程质量最优，锻造时间最短、损伤为 0，但求解耗时长，难以满足生产前的快速决策要求；固定参数曲线（PolicyNet）的锻造时间次短、给出决策的速度很快，但仿真中出现损伤，安全性得不到保证；本文方法的锻造时间最长，但相对固定参数曲线仅略长，其决策因采用自回归逐步推理而略慢于固定参数曲线的单发决策，仍明显快于 PSO，且仿真测试中不出现损伤。可见，本文方法以很小的锻造时间代价换取了无损伤的安全性，以及远优于 PSO 的决策速度。图~\ref{fig:PSO-Objective} 进一步展示了目标函数在寻优过程中的变化。
+进一步比较不同决策方式的过程性能与决策效率，各方式的速度曲线分别如图~\ref{fig:ours_speed} 和图~\ref{fig:other_speed} 所示，定量结果见表~\ref{tab:Method Comparison}。PSO 的过程质量最优，锻造时间最短、损伤为 0，但求解耗时长，难以满足生产前的快速决策要求；固定参数曲线的锻造时间最长、给出决策的速度很快，但仿真中出现损伤，安全性得不到保证；本文方法的锻造时间介于两者之间、略长于 PSO 而短于固定参数，其决策因采用自回归逐步推理而略慢于固定参数曲线的单发决策，仍明显快于 PSO，且仿真测试中不出现损伤。可见，本文方法以极小的锻造时间代价换取了无损伤的安全性，同时锻造时间优于固定参数、决策速度远优于 PSO。
 
 \begin{table}[htbp]
 \centering
@@ -125,19 +125,19 @@ v_{1}, & t>t_{1}
 \textbf{Method} & \textbf{Forge Time} & \textbf{Decision Time} & \textbf{Damage Rate}\\
 & (mean$\pm$std,ms) & (mean$\pm$std,ms) & (\%)\\
 \midrule
-本文方法   & 126.28$\pm$4.56 & 105.21$\pm$4.13 & 0.00 \\
-固定参数   & 123.08$\pm$1.92 & 97.37$\pm$3.86 & 8.00 \\
+本文方法   & 115.14$\pm$6.15 & 105.21$\pm$4.13 & 0.00 \\
+固定参数   & 119.18$\pm$4.84 & 97.37$\pm$3.86 & 8.00 \\
 PSO        & 108.72$\pm$11.55 & 2580$\pm$1370 & 0.00 \\
 \bottomrule
 \end{tabular}
 \label{tab:Method Comparison}
 \end{table}
 
-\begin{figure}[htbp]
-\centerline{\includegraphics[width=\linewidth]{PSO-Objective-2.pdf}}
-\caption{Objective function comparison.}
-\label{fig:PSO-Objective}
-\end{figure}
+% \begin{figure}[htbp]
+% \centerline{\includegraphics[width=\linewidth]{PSO-Objective-2.pdf}}
+% \caption{Objective function comparison.}
+% \label{fig:PSO-Objective}
+% \end{figure}
 % 【占位图：PSO-Objective-2.pdf 暂作占位，后续替换为逐步求解与单发求解的目标函数对比】
 
 综上，PSO 与固定参数曲线分别在决策效率与安全性上存在不足，而本文方法在保证无损伤的同时保持了可接受的锻造时间与远优于 PSO 的决策速度，更适用于实际锻造工况。

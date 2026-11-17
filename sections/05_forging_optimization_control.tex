@@ -14,7 +14,7 @@
 
 \textbf{状态} 以世界模型内部隐状态 $c_k\in\mathbb{R}^{d}$ 为状态，其解码得到的几何—多物理场点云 $o_k=\mathrm{Dec}(c_k)\in\mathbb{R}^{N\times 6}$ 为决策所依据的观测；策略与价值函数均以 $o_k$ 为输入（$o_k$ 为 $c_k$ 的确定性函数）。
 
-\textbf{动作} 决策器沿行程逐步决定下压速度：第 $k$ 步在累计行程（位移）$s_k$ 处输出该步速度 $v_k=a_k\in\mathbb{R}$。各步速度构成以行程为自变量的速度曲线 $v(s)$；再由 $dt=ds/v(s)$ 将自变量由位移 $s$ 换算为时间 $t$，得到以时间为自变量的速度曲线
+\textbf{动作} 决策器沿行程逐步决定下压速度：第 $k$ 步在累计行程（位移）$s_k$ 处输出该步速度 $v_k=a_k\in\mathbb{R}$，其取值受设备能力约束，$v_k\in[v_{\min},v_{\max}]$。各步速度构成以行程为自变量的速度曲线 $v(s)$；再由 $dt=ds/v(s)$ 将自变量由位移 $s$ 换算为时间 $t$，得到以时间为自变量的速度曲线
 \begin{equation}
 v_y(t)=v\big(s(t)\big),
 \end{equation}
@@ -51,8 +51,8 @@ d_k=\mathrm{relu}(D_k-D_{\text{cr}}),
 \end{equation}
 其中 $\gamma$ 为折扣因子。约束是逐步的，即要求每一步的损伤累积值均不越限（$D_k\le D_{\text{cr}}$）。
 
-\subsection{动作参数化}
-各步速度沿行程连续给出且可导，保证由位移域换算得到的曲线 $v_y(t)$ 光滑、无加速度突跳，可直接用于推理器的沿行程积分 $\frac{dc}{ds}=g(c,v_y(t))$；位移域上的连续表示也使单步速度变化沿行程被平滑分摊，不易产生高频抖动。行程等式由位移域定义天然满足，而速度箱与损伤约束只限制可行域、不降低决策自由度。
+\subsection{动作的连续表示}
+下压速度以行程为自变量连续给出、沿行程可导，因而速度曲线 $v_y(t)$ 光滑、无加速度突跳，可直接代入推理器的沿行程积分 $\frac{dc}{ds}=g(c,\,v_y(t))$；单步速度的变化也由此沿行程平滑分摊，不产生高频抖动。行程等式由位移域定义自动成立，速度上下界与损伤约束仅限定可行域、不压缩决策的自由度。
 % 【实验章待补：动作参数化消融——样条插值 vs 折线直连】
 
 \subsection{决策器与优化算法}
@@ -81,11 +81,18 @@ $\hat{V}(o_k)$ 为价值估计（critic），其网络参数记为 $\phi$。价�
 \begin{equation}
 \mathcal{L}_{V}(\phi)=\mathbb{E}\Big[\big(\hat{V}(o_k)-\big[\tilde r_k+\gamma\,\mathrm{sg}(\hat{V}(o_{k+1}))\big]\big)^{2}\Big],
 \end{equation}
-其中 $\mathrm{sg}(\cdot)$ 为停止梯度算子。为鼓励探索并防止过早收敛，加入逐步熵正则项：
+其中 $\mathrm{sg}(\cdot)$ 为停止梯度算子。为鼓励探索并防止过早收敛，加入逐步熵正则项。此外，锻压速度“先慢后快”的形态具有明确的损伤控制动机~\cite{bambach2018towards}：变形初期接触冲击与局部应力集中使损伤萌生最敏感，低速可抑制损伤累积，待材料充分软化后再加速以缩短高温停留。本文不沿用该工作将先验硬编码进参数化曲线族，而是以单调正则项将其降为软偏好：
 \begin{equation}
-\mathcal{J}(\psi,\lambda)=\mathcal{L}(\psi,\lambda)+\eta\,\mathbb{E}\Big[\sum_{k}\gamma^{k}H\big[\pi_{\psi}(\cdot\mid o_k)\big]\Big],
+\mathcal{R}_{\text{mono}}(\psi)=\mathbb{E}\Big[\sum_{k}\gamma^{k}\,\max\big(0,\,v_k-v_{k+1}\big)\Big],
 \end{equation}
-其中 $\eta$ 为熵系数，$H[\cdot]$ 为策略熵。
+该正则只在 $v_k>v_{k+1}$（本步快于下一步，即减速）时取正、其余为 0，因而只惩罚减速段、诱导速度单调不减；其对加速幅度无偏好，故不限制策略表示任意速度曲线的能力。将熵正则与单调正则一并并入目标函数，得到
+\begin{equation}
+\begin{aligned}
+\mathcal{J}(\psi,\lambda)=&\,\mathcal{L}(\psi,\lambda)+\eta\,\mathbb{E}\Big[\sum_{k}\gamma^{k}H\big[\pi_{\psi}(\cdot\mid o_k)\big]\Big]\\
+&-\lambda_m\,\mathcal{R}_{\text{mono}}(\psi),
+\end{aligned}
+\end{equation}
+其中 $\eta$、$\lambda_m$ 分别为熵系数与单调正则强度，$H[\cdot]$ 为策略熵。
 
 优化采用对偶梯度上升：先固定 $\lambda$、按 $\psi$ 最大化 $\mathcal{J}$ 更新策略参数；再固定 $\psi$、依约束违反程度更新对偶变量
 \begin{equation}
