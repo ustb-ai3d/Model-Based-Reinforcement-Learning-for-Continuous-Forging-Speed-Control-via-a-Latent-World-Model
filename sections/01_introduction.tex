@@ -10,7 +10,7 @@
 因此，如何设定压机下压速度曲线，是实现高效优质锻造的核心决策问题。
 
 \begin{figure}[htbp]
-\centerline{\includegraphics[width=\linewidth]{forging_press.png}}
+\centerline{\includegraphics[width=7cm]{forging_press.png}}
 \caption{锻造压机示意。}
 \label{fig:forging_press}
 \end{figure}
@@ -65,6 +65,7 @@
 RNN、LSTM、Transformer 等时序模型以离散时间步递推~\cite{elman1990finding, hochreiter1997long, vaswani2017attention}；
 然而离散步长与锻造的连续加载不对应，难以刻画连续物理演化。
 Neural ODE 以向量场描述状态的连续变化，为连续时间建模提供了框架；但其在高维点云多物理场预测中的应用尚少。
+锻造的温度、应力、损伤等物理量是定义在连续几何上的场，随变形历程连续演化，需在任意位置查询取值；现有数据驱动模型多将场离散为固定网格或固定点数输出，难以在连续坐标上给出整场预测。DeepONet 等算子学习模型将场建模为坐标的连续函数，学习函数到函数的映射：branch 编码函数输入，trunk 以坐标为自变量查询，各点共享空间基，从而以单一网络在任意坐标处输出场值，契合由低维隐状态重建连续几何—多物理场的需求。
 
 % ===== 第7段：本文思路 =====
 针对上述不足，本文构建一个以任意连续时间速度曲线为输入、
@@ -101,7 +102,7 @@ PointNet++ 层级编码器将每步点云压缩为低维隐状态，
 求解完成后，将所得完整速度曲线一次性下发设备开环执行。
 
 \begin{figure}[htbp]
-\centerline{\includegraphics[width=\linewidth]{frame-1.pdf}}
+\centerline{\includegraphics[width=16cm]{fram-1-wide.pdf}}
 \caption{本文研究总体框架。}
 \label{fig:framework}
 \end{figure}

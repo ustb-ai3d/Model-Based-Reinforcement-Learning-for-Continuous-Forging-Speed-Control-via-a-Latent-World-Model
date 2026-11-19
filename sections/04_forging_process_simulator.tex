@@ -3,7 +3,7 @@
 
 锻造变形序列的几何与多物理场随变形历程连续演化。为以低维隐状态联合承载几何与温度、等效应力、损伤等信息，并支持连续时间的自回归推演，本文构建“编码器—推理器—解码器”（Encoder--Inferencer--Decoder）框架的锻造世界模型：编码器 $E:\mathbb{R}^{N\times 6}\to\mathbb{R}^{d}$ 将第 $k$ 步点云 $X_k\in\mathbb{R}^{N\times 6}$ 映射为隐状态 $c_k=E(X_k)\in\mathbb{R}^{d}$，作为该步工件（几何与多物理场）的紧凑快照；推理器 $g:\mathbb{R}^{d}\times\mathbb{R}\to\mathbb{R}^{d}$ 以下压速度曲线为条件，在增广空间中建模隐状态的连续演化；解码器 $\mathrm{Dec}$ 由隐状态重建点云 $\hat{X}_k=\mathrm{Dec}(c_k)\in\mathbb{R}^{N\times 6}$。由此，世界模型同时具备重建与预测两种能力：前者保证隐状态可高保真还原为几何—多物理场点云，后者保证其可沿工艺参数自回归推演。世界模型的总体框架如图~\ref{fig:world_model} 所示。
 \begin{figure}[htbp]
-\centerline{\includegraphics[width=\linewidth]{world_model_framework_wide.pdf}}
+\centerline{\includegraphics[width=16cm]{world_model_framework_wide.pdf}}
 \caption{锻造世界模型的总体框架：编码器 $E$ 将点云映射为隐状态 $c_k$，推理器 $g$ 以速度曲线为条件沿行程积分推进隐状态，解码器 $\mathrm{Dec}$ 由隐状态重建几何—多物理场点云。}
 \label{fig:world_model}
 \end{figure}
@@ -55,7 +55,7 @@ c_{k+1}=c_k+\int_{s_k}^{s_{k+1}} g\big(c(s),\,v_y(t(s))\big)\,ds ,
 其中 $f_{b}:\mathbb{R}^{d}\to\mathbb{R}^{P\times C}$、$f_{t}:\mathbb{R}^{3}\to\mathbb{R}^{P}$ 分别为 branch 网络与 trunk 网络，$P$ 为空间基个数，$C=6$ 为输出通道数（3 维位移与 3 个物理场）；$W\in\mathbb{R}^{C\times(PC)}$、$b\in\mathbb{R}^{C}$ 为输出层的权重与偏置；$\Delta p_i\in\mathbb{R}^{3}$ 为参考点 $i$ 的位移预测，$\hat{T}_i$、$\hat{\sigma}_i$、$\hat{D}_i$ 分别为温度、等效应力与损伤的预测值。记 $\mathrm{Dec}(c_k)$ 为由 $c_k$ 生成的完整点云，其对任一参考点 $r_i$ 的逐点作用即为上式；位移与物理场由同一隐状态经共享输出层耦合输出，在物理上相互约束。
 
 \begin{figure}[htbp]
-\centerline{\includegraphics[width=\linewidth]{decoder.pdf}}
+\centerline{\includegraphics[width=16cm]{decoder-wide.pdf}}
 \caption{解码器架构示意图。}
 \label{fig:decoder}
 \end{figure}
@@ -73,19 +73,19 @@ c_{k+1}=c_k+\int_{s_k}^{s_{k+1}} g\big(c(s),\,v_y(t(s))\big)\,ds ,
 从而得到 $\hat{X}_k\in\mathbb{R}^{N\times 6}$，在同一隐状态下联合重建形状与多物理场，强化几何与场的物理一致性。
 
 \subsection{训练目标}
-世界模型采用单阶段联合训练，端到端优化编码器、推理器与解码器，目标由三部分构成：
-\begin{equation}
-\mathcal{L}=\mathcal{L}_{\text{recon}}+\beta\,\mathcal{L}_{\text{pred}}+\beta_{M}\,\mathcal{L}_{\text{rollout}} .
-\end{equation}
-其中 $\beta$ 与 $\beta_M$ 为各项的权重系数（$\beta_M$ 对应 $M$ 步展开）。重构损失为解码器由真实隐状态重建点云的逐点误差，对各步求和、在批上求均值（$\mathbb{E}[\cdot]$ 表示对批取期望）：
+世界模型采用两阶段训练。第一阶段训练编码器与解码器，仅以重构损失优化二者，使隐状态可重建为几何—多物理场点云；第二阶段训练推理器，以隐空间预测损失与多步 rollout 损失优化其向量场，使隐状态可沿下压速度曲线自回归推演。
+
+第一阶段的重构损失为解码器由真实隐状态重建点云的逐点误差，对各步求和、在批上求均值（$\mathbb{E}[\cdot]$ 表示对批取期望）：
 \begin{equation}
 \mathcal{L}_{\text{recon}}=\mathbb{E}\Big[\sum_{k}\big\|\mathrm{Dec}(c_k)-X_k\big\|^{2}\Big] .
 \end{equation}
-隐空间预测损失为预测隐状态与真实编码之间的均方误差，其中 $\hat{c}_{k+1}$ 为推理器预测的下一步隐状态，$c_{k+1}=E(X_{k+1})$ 为对应的真实编码，$\mathrm{sg}(\cdot)$ 为停止梯度算子（切断梯度回传至编码器）：
+
+第二阶段的隐空间预测损失为预测隐状态与真实编码之间的均方误差，其中 $\hat{c}_{k+1}$ 为推理器预测的下一步隐状态，$c_{k+1}=E(X_{k+1})$ 为对应的真实编码，$\mathrm{sg}(\cdot)$ 为停止梯度算子（切断梯度回传至编码器）：
 \begin{equation}
 \mathcal{L}_{\text{pred}}=\mathbb{E}\Big[\big\|\hat{c}_{k+1}-\mathrm{sg}(c_{k+1})\big\|^{2}\Big] .
 \end{equation}
-多步 rollout 损失用于增强长时预测稳定性：从第 $k$ 步出发自回归展开 $M$ 步，过程中逐步以预测隐状态推进（而非使用真实编码），并对展开路径上每一步的预测隐状态与该步真实编码计算损失：
+
+多步 rollout 损失用于增强长时预测稳定性，并以权重 $\beta_M$ 与预测损失加权求和：从第 $k$ 步出发自回归展开 $M$ 步，每一步以上一步预测的隐状态推进、而非使用真实编码，并对展开路径上每一步的预测隐状态与该步真实编码计算损失：
 \begin{equation}
 \mathcal{L}_{\text{rollout}}=\mathbb{E}\Big[\sum_{k}\sum_{j=1}^{M}\big\|\hat{c}_{k}^{(j)}-\mathrm{sg}(c_{k+j})\big\|^{2}\Big],
 \end{equation}

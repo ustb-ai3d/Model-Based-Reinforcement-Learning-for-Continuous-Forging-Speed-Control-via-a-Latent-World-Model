@@ -12,7 +12,7 @@
 为评估世界模型的预测精度，以应力场为例，将其预测结果与有限元仿真及基线方法进行对比。图~\ref{fig:model_result} 给出了变形历程中 5 个变形步的应力场点云：第一行为有限元仿真真值，第二行为本文模型的预测，第三行为 DeepONet 基线的结果。本文模型的应力分布与真值高度一致，偏差集中于局部区域、幅度较小；基线在应力集中区域出现明显的分布偏移。
 
 \begin{figure}[htbp]
-\centerline{\includegraphics[width=\linewidth]{timeline.pdf}}
+\centerline{\includegraphics[width=14cm]{timeline.pdf}}
 \caption{应力场预测对比：三行自上而下分别为有限元真值、本文模型预测与 DeepONet 基线；每行自左至右为变形历程中 5 个变形步的点云。}
 \label{fig:model_result}
 \end{figure}
@@ -54,19 +54,9 @@ MLP decoder & -- & -- & -- & -- & -- \\
 
 \begin{figure}[htbp]
     \centering
-    \begin{subfigure}{0.48\columnwidth}
-        \centering
-        \includegraphics[width=\linewidth]{reward-1.pdf}
-        \caption{Reward}
-        \label{fig:reward_a}
-    \end{subfigure}
+    \subfloat[Reward]{\includegraphics[width=0.48\linewidth]{reward-1.pdf}\label{fig:reward_a}}
     \hfill
-    \begin{subfigure}{0.48\columnwidth}
-        \centering
-        \includegraphics[width=\linewidth]{damage-1.pdf}
-        \caption{Damage}
-        \label{fig:damage_b}
-    \end{subfigure}
+    \subfloat[Damage]{\includegraphics[width=0.48\linewidth]{damage-1.pdf}\label{fig:damage_b}}
     \caption{Training parameter over epochs.}
     \label{fig:combined_curves}
 \end{figure}
@@ -74,9 +64,20 @@ MLP decoder & -- & -- & -- & -- & -- \\
 图~\ref{fig:ours_speed} 给出了本文方法在不同初始温度场下生成的速度曲线及损伤曲线。当初始温度由 $474\,^{\circ}\mathrm{C}$ 升至 $500\,^{\circ}\mathrm{C}$ 时，速度曲线的加速段提前、锻造时间缩短，表明决策器能够依据初始温度场自适应地调整速度曲线，以利用材料的高温软化特性；损伤曲线随变形逐渐上升、末步达到峰值，其与临界损伤值 $D_{\text{cr}}$ 的比值仍小于 1.0，表明损伤整体得到控制。
 
 \begin{figure}[htbp]
-\centerline{\includegraphics[width=\linewidth]{speed_close_withDamage.pdf}}
-\caption{本文方法在不同初始温度场下生成的速度曲线与损伤曲线（$474\,^{\circ}\mathrm{C}$--$500\,^{\circ}\mathrm{C}$）。损伤曲线取每步点云中损伤最大的前 50 个点的平均。}
-\label{fig:ours_speed}
+    \centering
+    \begin{minipage}[t]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{speed_close.pdf}
+        \caption{本文方法在不同初始温度场下生成的速度曲线与损伤曲线（$474\,^{\circ}\mathrm{C}$--$500\,^{\circ}\mathrm{C}$）。损伤曲线取每步点云中损伤最大的前 50 个点的平均。}
+        \label{fig:ours_speed}
+    \end{minipage}
+    \hfill
+    \begin{minipage}[t]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{velocity_profile.pdf}
+        \caption{单次输出参数化决策的三段式形态。}
+        \label{fig:speed_profile}
+    \end{minipage}
 \end{figure}
 
 \textbf{对比方法}。单次输出参数化决策同样是一个训练得到的决策网络，其与本文决策器的区别在于决策表示：本文逐步输出各步速度，而它以单次输出（single-shot）的方式直接给出四维速度参数 $\theta=\{v_0,v_1,t_0,t_1\}$，再据此还原出整条速度曲线。该曲线限定为“匀速—加速—匀速”的三段式形态，由平滑四参数函数给出：
@@ -90,26 +91,10 @@ v_{1}, & t>t_{1}
 其中 $\xi=(t-t_0)/(t_1-t_0)$，$\theta$ 的各分量对应初始速度、目标速度与加速起止时刻，该函数在 $t_0$、$t_1$ 处具有二阶连续导数，保证加速平滑。决策网络以初始温度场为输入、单次输出 $\theta$，训练目标同样是在世界模型内缩短锻造时间并满足损伤约束；因无需逐步闭环 rollout，其决策耗时低于本文方法，但牺牲了对演化过程的逐步利用。PSO 则不做训练，在同一条参数曲线上以粒子群进行全局搜索，其决策耗时主要来自反复的适应度评估。
 
 \begin{figure}[htbp]
-\centerline{\includegraphics[width=\linewidth]{velocity_profile.pdf}}
-\caption{单次输出参数化决策的三段式形态。}
-\label{fig:speed_profile}
-\end{figure}
-
-\begin{figure}[htbp]
     \centering
-    \begin{subfigure}{0.48\columnwidth}
-        \centering
-        \includegraphics[width=\linewidth]{speed_open.pdf}
-        \caption{单次输出参数化决策}
-        \label{fig:policynet_speed}
-    \end{subfigure}
+    \subfloat[单次输出参数化决策]{\includegraphics[width=0.48\linewidth]{NetworkSpeed_decision.pdf}\label{fig:policynet_speed}}
     \hfill
-    \begin{subfigure}{0.48\columnwidth}
-        \centering
-        \includegraphics[width=\linewidth]{PSOSpeed.pdf}
-        \caption{PSO}
-        \label{fig:pso_speed}
-    \end{subfigure}
+    \subfloat[PSO]{\includegraphics[width=0.48\linewidth]{NetworkSpeed_PSO.pdf}\label{fig:pso_speed}}
     \caption{与其他决策方式的速度曲线对比（$474\,^{\circ}\mathrm{C}$--$500\,^{\circ}\mathrm{C}$）。}
     \label{fig:other_speed}
 \end{figure}
