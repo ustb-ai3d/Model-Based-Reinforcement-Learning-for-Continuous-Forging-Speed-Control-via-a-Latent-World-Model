@@ -8,7 +8,19 @@
 实验中的主要超参数设置为：每步点数 $N=5000$、隐状态维度 $d=48$、编码器级数 $n_{\text{SA}}=4$。损伤约束的临界损伤值取 $D_{\text{cr}}=0.43$。
 % 【待补：其余超参数与实验环境】
 
-\subsection{世界模型预测精度}
+\subsection{World Model Evaluation}
+
+世界模型采用两阶段训练。图~\ref{fig:train_loss} 给出两个阶段的训练损失曲线：第一阶段以重构损失训练编码器与解码器（图~\ref{fig:train_loss_a}），第二阶段以预测损失训练动力学推理器（图~\ref{fig:train_loss_b}）。两阶段的训练与验证损失均随训练轮次下降并趋于平稳，二者同步收敛、差距稳定，未出现明显过拟合，表明重构表示与隐空间动力学均已有效收敛。
+
+\begin{figure}[htbp]
+    \centering
+    \subfloat[Stage 1 (reconstruction)]{\includegraphics[width=0.48\linewidth]{train_loss_1.pdf}\label{fig:train_loss_a}}
+    \hfill
+    \subfloat[Stage 2 (prediction)]{\includegraphics[width=0.48\linewidth]{train_loss_2.pdf}\label{fig:train_loss_b}}
+    \caption{世界模型两阶段训练的损失曲线。}
+    \label{fig:train_loss}
+\end{figure}
+
 为评估世界模型的预测精度，以应力场为例，将其预测结果与有限元仿真及基线方法进行对比。图~\ref{fig:model_result} 给出了变形历程中 5 个变形步的应力场点云：第一行为有限元仿真真值，第二行为本文模型的预测，第三行为 DeepONet 基线的结果。本文模型的应力分布与真值高度一致，偏差集中于局部区域、幅度较小；基线在应力集中区域出现明显的分布偏移。
 
 \begin{figure}[htbp]
@@ -17,18 +29,18 @@
 \label{fig:model_result}
 \end{figure}
 
-进一步在测试集上量化误差。推理时沿用同一向量场，只把积分区间加粗：将 67 个变形步对应的总行程均分为 13 段，每一段用一次积分直接从段首推进到段末，解码后得到该处的点云；训练时则按变形步逐步推进。几何误差按逐轴均方根误差以 mm 计，物理场误差按各场在训练集上的均值与方差归一化、逐通道计算后取平均，误差均在 13 个段末位置与对应有限元结果逐点比较。该推演方式下几何的逐轴均方根误差为 1.63 mm，三个物理场的归一化 MSE 平均为 0.080，逐通道结果见表~\ref{tab:model_error}。三个通道中，等效应力的归一化误差最高，温度次之，损伤最低。等效应力由应变速率与温度共同决定、依赖整个变形历程，是三个场中对工艺条件最敏感的一个；温度以热传导为主、分布平缓，相对更易拟合；损伤仅在局部累积、多数点接近零，逐点误差被大量近零点稀释，故归一化误差最低。决策阶段需要反复推演整条曲线，粗粒度积分使单次推演的积分与解码次数降为逐步推进的 $1/5$，从而支撑在世界模型内的闭环求解。
+进一步在测试集上量化误差。推理时沿用训练好的向量场，沿行程积分推进并解码得到点云。几何误差按逐轴均方根误差以 mm 计，物理场误差按各场在训练集上的均值与方差归一化、逐通道计算后取平均，误差与对应有限元结果逐点比较。该推演方式下几何的逐轴均方根误差为 1.63 mm，三个物理场的归一化 MSE 平均为 0.080，逐通道结果见表~\ref{tab:model_error}。三个通道中，等效应力的归一化误差最高，温度次之，损伤最低。等效应力由应变速率与温度共同决定、依赖整个变形历程，是三个场中对工艺条件最敏感的一个；温度以热传导为主、分布平缓，相对更易拟合；损伤仅在局部累积、多数点接近零，逐点误差被大量近零点稀释，故归一化误差最低。决策阶段需在世界模型内反复推演整条曲线，从而支撑闭环求解。
 
 \begin{table}[htbp]
 \centering
 \caption{Prediction errors of the overall methods and single-module variants}
 \label{tab:model_error}
-\setlength{\tabcolsep}{1.5pt}
+\setlength{\tabcolsep}{5pt}
 \footnotesize
 \begin{tabular}{l c c c c c}
 \toprule
- & Geometry & \multicolumn{3}{c}{Normalized MSE} & Field \\
-Model & RMSE (mm) & Temp. & von Mises & Dmg. & avg. \\
+ & RMSE (mm) & \multicolumn{4}{c}{Normalized MSE} \\
+Model & Geometry & Temp. & von Mises & Dmg. & avg. \\
 \midrule
 \multicolumn{6}{l}{\textit{Overall methods}} \\
 Ours & 1.63 & 0.104 & 0.115 & 0.022 & 0.080 \\
@@ -41,7 +53,7 @@ MLP decoder & -- & -- & -- & -- & -- \\
 \end{tabular}
 
 \vspace{2pt}
-{\footnotesize Note: geometry is reported as per-axis RMSE in mm; the normalized MSE of each field uses training-set statistics; field avg.\ is the mean over the three field channels and excludes geometry. All metrics are averaged over the 13-step coarse rollout on the test set. Physical RMSE of the full model: 8.8\,$^{\circ}$C (temperature), 6.3 MPa (von Mises), $4.7\times10^{-3}$ (damage).}
+{\footnotesize Note: geometry is reported as per-axis RMSE in mm; the normalized MSE of each field uses training-set statistics; field avg.\ is the mean over the three field channels and excludes geometry. All metrics are averaged over the rollout on the test set. Physical RMSE of the full model: 8.8\,$^{\circ}$C (temperature), 6.3 MPa (von Mises), $4.7\times10^{-3}$ (damage).}
 \end{table}
 
 训练集上的同口径误差为几何 1.87 mm、温度 9.7 $^{\circ}$C、等效应力 7.9 MPa、损伤 $5.6\times10^{-3}$，略高于测试集。原因在于训练集覆盖的温度与变形区间更宽，且归一化统计量取自训练集；两集合误差处于同一量级、各通道偏差方向一致，未出现训练集显著优于测试集的过拟合迹象。
