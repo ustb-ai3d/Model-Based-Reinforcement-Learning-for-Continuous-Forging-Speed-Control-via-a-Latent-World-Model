@@ -10,7 +10,7 @@
 
 \subsection{World Model Evaluation}
 
-世界模型采用两阶段训练。图~\ref{fig:train_loss} 给出两个阶段的训练损失曲线：第一阶段以重构损失训练编码器与解码器（图~\ref{fig:train_loss_a}），第二阶段以预测损失训练动力学推理器（图~\ref{fig:train_loss_b}）。两阶段的训练与验证损失均随训练轮次下降并趋于平稳，二者同步收敛、差距稳定，未出现明显过拟合，表明重构表示与隐空间动力学均已有效收敛。
+世界模型采用两阶段训练。图~\ref{fig:train_loss} 给出两个阶段的训练损失曲线：第一阶段以重构损失训练编码器与解码器（图~\ref{fig:train_loss_a}），第二阶段以预测损失训练隐动力学模型（图~\ref{fig:train_loss_b}）。两阶段的训练与验证损失均随训练轮次下降并趋于平稳，二者同步收敛、差距稳定，未出现明显过拟合，表明重构表示与隐空间动力学均已有效收敛。
 
 \begin{figure}[htbp]
     \centering
@@ -24,16 +24,16 @@
 为评估世界模型的预测精度，以应力场为例，将其预测结果与有限元仿真及基线方法进行对比。图~\ref{fig:model_result} 给出了变形历程中 5 个变形步的应力场点云：第一行为有限元仿真真值，第二行为本文模型的预测，第三行为 DeepONet 基线的结果。本文模型的应力分布与真值高度一致，偏差集中于局部区域、幅度较小；基线在应力集中区域出现明显的分布偏移。
 
 \begin{figure}[htbp]
-\centerline{\includegraphics[width=14cm]{timeline.pdf}}
+\centerline{\includegraphics[width=16cm]{timeline-1.pdf}}
 \caption{应力场预测对比：三行自上而下分别为有限元真值、本文模型预测与 DeepONet 基线；每行自左至右为变形历程中 5 个变形步的点云。}
 \label{fig:model_result}
 \end{figure}
 
-进一步在测试集上量化误差。推理时沿用训练好的向量场，沿行程积分推进并解码得到点云。几何误差按逐轴均方根误差以 mm 计，物理场误差按各场在训练集上的均值与方差归一化、逐通道计算后取平均，误差与对应有限元结果逐点比较。该推演方式下几何的逐轴均方根误差为 1.63 mm，三个物理场的归一化 MSE 平均为 0.080，逐通道结果见表~\ref{tab:model_error}。三个通道中，等效应力的归一化误差最高，温度次之，损伤最低。等效应力由应变速率与温度共同决定、依赖整个变形历程，是三个场中对工艺条件最敏感的一个；温度以热传导为主、分布平缓，相对更易拟合；损伤仅在局部累积、多数点接近零，逐点误差被大量近零点稀释，故归一化误差最低。决策阶段需在世界模型内反复推演整条曲线，从而支撑闭环求解。
+进一步在测试集上量化误差。推理时以训练完成的隐动力学模型沿行程积分推进，解码得到点云。几何误差按逐轴均方根误差以 mm 计，物理场误差按各场在训练集上的均值与方差归一化、逐通道计算后取平均，误差与对应有限元结果逐点比较。该推演方式下几何的逐轴均方根误差为 1.63 mm，三个物理场的归一化 MSE 平均为 0.080，逐通道结果见表~\ref{tab:model_error}。三个通道中，等效应力的归一化误差最高，温度次之，损伤最低。等效应力由应变速率与温度共同决定、依赖整个变形历程，是三个场中对工艺条件最敏感的一个；温度以热传导为主、分布平缓，相对更易拟合；损伤仅在局部累积、多数点接近零，逐点误差被大量近零点稀释，故归一化误差最低。决策阶段需在世界模型内反复推演整条曲线，从而支撑闭环求解。
 
 \begin{table}[htbp]
 \centering
-\caption{Prediction errors of the overall methods and single-module variants}
+\caption{Prediction errors of the proposed and baseline methods}
 \label{tab:model_error}
 \setlength{\tabcolsep}{5pt}
 \footnotesize
@@ -42,13 +42,8 @@
  & RMSE (mm) & \multicolumn{4}{c}{Normalized MSE} \\
 Model & Geometry & Temp. & von Mises & Dmg. & avg. \\
 \midrule
-\multicolumn{6}{l}{\textit{Overall methods}} \\
 Ours & 1.63 & 0.104 & 0.115 & 0.022 & 0.080 \\
 DeepONet (no latent) & 1.57 & 0.129 & 0.255 & 0.031 & 0.138 \\
-\midrule
-\multicolumn{6}{l}{\textit{Single-module variants}} \\
-RNN predictor & -- & -- & -- & -- & -- \\
-MLP decoder & -- & -- & -- & -- & -- \\
 \bottomrule
 \end{tabular}
 
@@ -75,7 +70,7 @@ MLP decoder & -- & -- & -- & -- & -- \\
 
 图~\ref{fig:ours_speed} 给出了本文方法在不同初始温度场下生成的速度曲线及损伤曲线。当初始温度由 $474\,^{\circ}\mathrm{C}$ 升至 $500\,^{\circ}\mathrm{C}$ 时，速度曲线的加速段提前、锻造时间缩短，表明决策器能够依据初始温度场自适应地调整速度曲线，以利用材料的高温软化特性；损伤曲线随变形逐渐上升、末步达到峰值，其与临界损伤值 $D_{\text{cr}}$ 的比值仍小于 1.0，表明损伤整体得到控制。
 
-\begin{figure}[htbp]
+\begin{figure}[H]
     \centering
     \begin{minipage}[t]{0.48\textwidth}
         \centering
@@ -102,7 +97,7 @@ v_{1}, & t>t_{1}
 \end{equation}
 其中 $\xi=(t-t_0)/(t_1-t_0)$，$\theta$ 的各分量对应初始速度、目标速度与加速起止时刻，该函数在 $t_0$、$t_1$ 处具有二阶连续导数，保证加速平滑。决策网络以初始温度场为输入、单次输出 $\theta$，训练目标同样是在世界模型内缩短锻造时间并满足损伤约束；因无需逐步闭环 rollout，其决策耗时低于本文方法，但牺牲了对演化过程的逐步利用。PSO 则不做训练，在同一条参数曲线上以粒子群进行全局搜索，其决策耗时主要来自反复的适应度评估。
 
-\begin{figure}[htbp]
+\begin{figure}[H]
     \centering
     \subfloat[单次输出参数化决策]{\includegraphics[width=0.48\linewidth]{NetworkSpeed_decision.pdf}\label{fig:policynet_speed}}
     \hfill
@@ -111,30 +106,31 @@ v_{1}, & t>t_{1}
     \label{fig:other_speed}
 \end{figure}
 
-进一步比较不同决策方式的过程性能与决策效率，各方式的速度曲线分别如图~\ref{fig:ours_speed} 和图~\ref{fig:other_speed} 所示，定量结果见表~\ref{tab:Method Comparison}。PSO 的过程质量最优，锻造时间最短、损伤为 0，但求解耗时长，难以满足生产前的快速决策要求；单次输出参数化决策的锻造时间最长、给出决策的速度很快，但仿真中出现损伤，安全性得不到保证；本文方法的锻造时间介于两者之间、略长于 PSO 而短于单次输出参数化决策，其决策因采用自回归逐步推理而略慢于单次输出参数化决策，仍明显快于 PSO，且仿真测试中不出现损伤。可见，本文方法以极小的锻造时间代价换取了无损伤的安全性，同时锻造时间优于单次输出参数化决策、决策速度远优于 PSO。
+进一步比较不同决策方式的过程性能与决策效率，各方式的速度曲线分别如图~\ref{fig:ours_speed} 和图~\ref{fig:other_speed} 所示，定量结果见表~\ref{tab:Method Comparison}。PSO 的过程质量最优，锻造时间最短、损伤率为 0，但求解耗时长，难以满足生产前的快速决策要求；单次输出参数化决策的锻造时间最长、给出决策的速度很快，但仿真中出现损伤，安全性得不到保证；本文方法的锻造时间介于两者之间、略长于 PSO 而短于单次输出参数化决策，其决策因采用自回归逐步推理而略慢于单次输出参数化决策，仍明显快于 PSO，且仿真测试中不出现损伤。可见，本文方法以极小的锻造时间代价换取了无损伤的安全性，同时锻造时间优于单次输出参数化决策、决策速度远优于 PSO。
 
-\begin{table}[htbp]
+\begin{table}[H]
 \centering
-\caption{三种决策方式的性能对比}
+\caption{Performance comparison of the three decision methods}
 \setlength{\tabcolsep}{3.5pt}
 \begin{tabular}{c c c c}
 \toprule
 \textbf{Method} & \textbf{Forge Time} & \textbf{Decision Time} & \textbf{Damage Rate}\\
 & (mean$\pm$std,ms) & (mean$\pm$std,ms) & (\%)\\
 \midrule
-本文方法   & 115.14$\pm$6.15 & 105.21$\pm$4.13 & 0.00 \\
-参数化决策 & 119.18$\pm$4.84 & 97.37$\pm$3.86 & 8.00 \\
+Ours & 115.14$\pm$6.15 & 105.21$\pm$4.13 & 0.00 \\
+Parametric decision & 119.18$\pm$4.84 & 97.37$\pm$3.86 & 8.00 \\
 PSO        & 108.72$\pm$11.55 & 2580$\pm$1370 & 0.00 \\
 \bottomrule
 \end{tabular}
 \label{tab:Method Comparison}
 \end{table}
 
-% \begin{figure}[htbp]
-% \centerline{\includegraphics[width=\linewidth]{PSO-Objective-2.pdf}}
-% \caption{Objective function comparison.}
-% \label{fig:PSO-Objective}
-% \end{figure}
-% 【占位图：PSO-Objective-2.pdf 暂作占位，后续替换为逐步求解与单发求解的目标函数对比】
+PSO 的决策耗时主要来自反复的适应度评估。图~\ref{fig:pso_objective} 给出其目标函数的收敛过程：PSO 需约 0.9 s 才能优化至与决策网络输出相当的目标函数值，完全收敛则需 2580 ms；而决策网络通过一次前向推理直接给出速度参数、无需迭代搜索。因此，尽管决策网络所得并非 PSO 的最优解，其在时间效率上显著占优。
+
+\begin{figure}[H]
+\centerline{\includegraphics[width=12cm]{PSO-Objective_linear.pdf}}
+\caption{PSO 求解过程中目标函数的收敛曲线。}
+\label{fig:pso_objective}
+\end{figure}
 
 综上，PSO 与单次输出参数化决策分别在决策效率与安全性上存在不足，而本文方法在保证无损伤的同时保持了可接受的锻造时间与远优于 PSO 的决策速度，更适用于实际锻造工况。
