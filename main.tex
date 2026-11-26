@@ -1,7 +1,13 @@
+\newif\ifEN
+\ENfalse   % \ENtrue = 英文投稿；\ENfalse = 中文工作版
+
 \documentclass{SCIS2027}
 
-% 中文支持：当前为中文写作，后续投稿翻译为英文后可移除本行
-\usepackage[UTF8, scheme=plain, autoindent=true]{ctex}
+\ifEN
+  % 英文版不加载中文支持
+\else
+  \usepackage[UTF8, scheme=plain, autoindent=true]{ctex}
+\fi
 
 % SCIS2027.cls 已自带 amsmath/amsthm/amsfonts/amssymb/graphicx/algorithm/algorithmic/
 % tabularx/url/float/booktabs/hyperref/cite/subfig 等，此处不再重复加载。
@@ -64,20 +70,36 @@
 \address[3]{dept. name of organization (of Aff.), University of Science and Technology Beijing, City, Country}
 
 % ===== 摘要与关键词 =====
-\abstract{锻造是先进装备制造中的核心成形工艺，其变形是强非线性、连续演化的物理过程。获取锻造过程中几何形状与温度、等效应力、损伤等多物理场的完整演化，是提升成形质量与效率、支撑工艺参数快速迭代的关键；然而，传统有限元仿真虽精度高，却需数值求解完整变形历程，单次耗时数小时至数天，且工艺参数一变即需整体重算，难以摊销与复用；现有数据驱动模型则多面向单点或低维时序观测、以离散时间建模为主，既难以刻画高维、无序、体量庞大的锻造点云及其多物理场的时空耦合演化，也难以融入锻造工艺的物理先验。针对上述高维、非线性与连续演化的建模难题，本文提出一种面向锻造变形序列的锻造世界模型，采用“编码器—隐动力学—解码器”框架：点云编码器基于 PointNet++ 将高维点云映射为低维隐状态，统一承载几何与多物理场信息；神经常微分方程（Neural ODE）隐动力学模型将锻压速度曲线作为物理先验融入其时间尺度变换，在“物理时间—隐状态”增广空间中建模隐状态的连续演化，使预测的时间尺度与真实工艺物理一致；几何—物理场联合解码器以首步几何为位移基底进行残差式几何重建，并以参考坐标为查询回归物理场，从而在同一隐状态下联合预测形状与多物理场。所提方法将锻造变形的“几何—多物理场”演化统一建模为可连续预测的隐空间动力学，为锻造等复杂工业过程的快速预测与工艺参数迭代提供了一种新思路。}
+\ifEN
+  \abstract{English abstract: to be translated.}
+  \keywords{English keywords: to be translated}
+\else
+  \abstract{锻造是先进装备制造中的核心成形工艺，其变形是强非线性、连续演化的物理过程。获取锻造过程中几何形状与温度、等效应力、损伤等多物理场的完整演化，是提升成形质量与效率、支撑工艺参数快速迭代的关键；然而，传统有限元仿真虽精度高，却需数值求解完整变形历程，单次耗时数小时至数天，且工艺参数一变即需整体重算，难以摊销与复用；现有数据驱动模型则多面向单点或低维时序观测、以离散时间建模为主，既难以刻画高维、无序、体量庞大的锻造点云及其多物理场的时空耦合演化，也难以融入锻造工艺的物理先验。针对上述高维、非线性与连续演化的建模难题，本文提出一种面向锻造变形序列的锻造世界模型，采用“编码器—隐动力学—解码器”框架：点云编码器基于 PointNet++ 将高维点云映射为低维隐状态，统一承载几何与多物理场信息；神经常微分方程（Neural ODE）隐动力学模型将锻压速度曲线作为物理先验融入其时间尺度变换，在“物理时间—隐状态”增广空间中建模隐状态的连续演化，使预测的时间尺度与真实工艺物理一致；几何—物理场联合解码器以首步几何为位移基底进行残差式几何重建，并以参考坐标为查询回归物理场，从而在同一隐状态下联合预测形状与多物理场。所提方法将锻造变形的“几何—多物理场”演化统一建模为可连续预测的隐空间动力学，为锻造等复杂工业过程的快速预测与工艺参数迭代提供了一种新思路。}
 
-\keywords{锻造变形序列, 锻造世界模型, 神经常微分方程, 多物理场联合建模}
+  \keywords{锻造变形序列, 锻造世界模型, 神经常微分方程, 多物理场联合建模}
+\fi
 
 \maketitle
 
-\input{sections/01_introduction}
-\input{sections/02_preliminaries}
-\input{sections/03_problem_formulation}
-\input{sections/04_forging_process_simulator}
-\input{sections/05_forging_optimization_control}
-\input{sections/06_experiment}
-\input{sections/07_conclusion}
-\input{sections/08_acknowledgments}
+\ifEN
+  \input{sections_en/01_introduction}
+  \input{sections_en/02_preliminaries}
+  \input{sections_en/03_problem_formulation}
+  \input{sections_en/04_forging_process_simulator}
+  \input{sections_en/05_forging_optimization_control}
+  \input{sections_en/06_experiment}
+  \input{sections_en/07_conclusion}
+  \input{sections_en/08_acknowledgments}
+\else
+  \input{sections/01_introduction}
+  \input{sections/02_preliminaries}
+  \input{sections/03_problem_formulation}
+  \input{sections/04_forging_process_simulator}
+  \input{sections/05_forging_optimization_control}
+  \input{sections/06_experiment}
+  \input{sections/07_conclusion}
+  \input{sections/08_acknowledgments}
+\fi
 
 \bibliographystyle{scis}
 \bibliography{ref}
