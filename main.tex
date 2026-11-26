@@ -60,19 +60,19 @@
 
 % ===== 作者 =====
 \author[1]{YiZhou Shao}{}
-\author[2]{Zhaolin Yuan}{{email address or ORCID}}
+\author[2]{Zhaolin Yuan}{yuanzhaolin@ustb.edu.cn}
 \author[3]{RuiZhe Wang}{}
-\author[3]{Given Name Surname}{}
+\author[2]{XiaoKun Wang}{}
 
 % ===== 单位 =====
 \address[1]{School of Intelligence Science and Technology, University of Science and Technology Beijing, Beijing, China}
-\address[2]{School of Civil and Resource Engineering, University of Science and Technology Beijing, Beijing, China}
-\address[3]{dept. name of organization (of Aff.), University of Science and Technology Beijing, City, Country}
+\address[2]{School of Intelligence Science and Technology, Shunde Innovation School, University of Science and Technology Beijing, Beijing, China}
+\address[3]{School of Computer and Communication Engineering, University of Science and Technology Beijing, Beijing, China}
 
 % ===== 摘要与关键词 =====
 \ifEN
-  \abstract{English abstract: to be translated.}
-  \keywords{English keywords: to be translated}
+  \abstract{Forging is a core forming process in advanced equipment manufacturing, whose deformation is a strongly nonlinear, continuously evolving physical process. Capturing the complete evolution of geometry and multi-physics fields such as temperature, von Mises stress, and damage is key to improving forming quality and efficiency and to enabling rapid iteration of process parameters. However, while the traditional finite-element simulation is accurate, it requires numerically solving the entire deformation history, taking hours to days per run, and any change in process parameters necessitates full recomputation, making the cost difficult to amortize or reuse. Existing data-driven models, by contrast, mostly target single-point or low-dimensional time-series observations and rely on discrete-time modeling, so they can neither capture the high-dimensional, unordered, and massive forging point cloud and the spatiotemporal coupling of its multi-physics fields, nor incorporate the physical priors of the forging process. To address the above modeling challenges of high dimensionality, nonlinearity, and continuous evolution, this paper proposes a forging world model for forging deformation sequences, built on an Encoder--Latent Dynamics--Decoder architecture: a point-cloud encoder based on PointNet++ maps the high-dimensional point cloud into a low-dimensional latent state that jointly carries geometry and multi-physics information; a Neural ODE latent dynamics model incorporates the die speed profile as a physical prior into its time-scale transformation and models the continuous evolution of the latent state in an augmented ``physical-time--latent-state'' space, aligning the prediction time scale with the true process physics; and a joint geometry--physics decoder performs residual geometric reconstruction with the first-step geometry as the displacement base and regresses the physical fields by querying reference coordinates, thereby jointly predicting shape and multi-physics fields from a single latent state. The proposed method unifies the evolution of the ``geometry--multi-physics field'' of forging deformation into a continuously predictable latent-space dynamics, offering a new approach for the rapid prediction and process-parameter iteration of complex industrial processes such as forging.}
+  \keywords{forging deformation sequence, forging world model, neural ordinary differential equation, multi-physics joint modeling}
 \else
   \abstract{锻造是先进装备制造中的核心成形工艺，其变形是强非线性、连续演化的物理过程。获取锻造过程中几何形状与温度、等效应力、损伤等多物理场的完整演化，是提升成形质量与效率、支撑工艺参数快速迭代的关键；然而，传统有限元仿真虽精度高，却需数值求解完整变形历程，单次耗时数小时至数天，且工艺参数一变即需整体重算，难以摊销与复用；现有数据驱动模型则多面向单点或低维时序观测、以离散时间建模为主，既难以刻画高维、无序、体量庞大的锻造点云及其多物理场的时空耦合演化，也难以融入锻造工艺的物理先验。针对上述高维、非线性与连续演化的建模难题，本文提出一种面向锻造变形序列的锻造世界模型，采用“编码器—隐动力学—解码器”框架：点云编码器基于 PointNet++ 将高维点云映射为低维隐状态，统一承载几何与多物理场信息；神经常微分方程（Neural ODE）隐动力学模型将锻压速度曲线作为物理先验融入其时间尺度变换，在“物理时间—隐状态”增广空间中建模隐状态的连续演化，使预测的时间尺度与真实工艺物理一致；几何—物理场联合解码器以首步几何为位移基底进行残差式几何重建，并以参考坐标为查询回归物理场，从而在同一隐状态下联合预测形状与多物理场。所提方法将锻造变形的“几何—多物理场”演化统一建模为可连续预测的隐空间动力学，为锻造等复杂工业过程的快速预测与工艺参数迭代提供了一种新思路。}
 

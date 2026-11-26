@@ -1,17 +1,17 @@
 \section{Preliminaries}
 
-\subsection{点云表征}
-点云以一组三维点表示工件表面，每个点除坐标外还可携带温度、应力等物理量，记为 $X=\{x_i\}_{i=1}^{N}$，$x_i\in\mathbb{R}^{C}$。点云是无序集合，同一形状对应 $N!$ 种排列，故处理点云的模型需具备置换不变性~\cite{qi2017pointnet}。与规则网格相比，点云不受拓扑与分辨率限制，可直接表示任意几何形状，适合承载有限元仿真输出的几何与场量。
+\subsection{Point Cloud Representation}
+A point cloud represents the workpiece surface as a set of three-dimensional points, where each point carries its coordinates together with physical quantities such as temperature and stress, denoted $X=\{x_i\}_{i=1}^{N}$ with $x_i\in\mathbb{R}^{C}$. A point cloud is an unordered set---the same shape corresponds to $N!$ orderings---so models operating on point clouds must be permutation-invariant~\cite{qi2017pointnet}. Unlike regular grids, a point cloud is free of topological and resolution constraints and can represent arbitrary geometries directly, making it suitable for carrying the geometry and fields output by finite-element simulations.
 
-\subsection{连续时间隐状态建模}
-Neural ODE 以参数化的向量场描述状态的连续演化：给定初值 $c(s_0)=c_0$，任意位置的状态由
+\subsection{Continuous-Time Latent State Modeling}
+A Neural ODE describes the continuous evolution of a state via a parameterized vector field: given the initial value $c(s_0)=c_0$, the state at any position is obtained by integrating
 \begin{equation}
 \frac{\mathrm{d}c}{\mathrm{d}s}=g(c,s;\theta)
 \end{equation}
-积分得到~\cite{chen2018neural}。与离散时间递推相比，它以连续自变量刻画动力学，可在任意时刻求值，并可用伴随法反向传播。这类模型已在工业过程的连续时间建模中得到应用~\cite{yuan2022autonomous, yuan2023ode, yuan2022differential}。
+~\cite{chen2018neural}. Compared with discrete-time recurrence, it characterizes the dynamics with a continuous independent variable, can be evaluated at arbitrary times, and supports backpropagation via the adjoint method. Such models have been applied to continuous-time modeling of industrial processes~\cite{yuan2022autonomous, yuan2023ode, yuan2022differential}.
 
-\subsection{世界模型}
-世界模型将高维观测压缩为低维隐状态，并在隐空间中学习状态随动作的演化，从而在不与真实环境交互的条件下预测未来。典型结构含编码器、隐动力学模型与解码器三部分：编码器由观测得到隐状态，隐动力学模型预测下一时刻的隐状态，解码器将隐状态还原为观测。预测在低维空间完成，计算代价远低于直接在高维观测上推演。
+\subsection{World Model}
+A world model compresses high-dimensional observations into a low-dimensional latent state and learns the evolution of the state under actions in the latent space, thereby predicting the future without interacting with the real environment. A typical structure consists of an encoder, a latent dynamics model, and a decoder: the encoder maps observations to the latent state, the latent dynamics model predicts the latent state at the next time, and the decoder reconstructs observations from the latent state. Prediction is performed in the low-dimensional space, whose cost is far lower than reasoning directly over high-dimensional observations.
 
 \subsection{DeepONet}
-DeepONet 用于学习函数到函数的映射，由 branch 与 trunk 两个子网构成：branch 接收输入函数的离散采样，trunk 接收输出函数的自变量，二者输出做内积即得该自变量处的函数值~\cite{lu2021deeponet}。由于输出是自变量的连续函数，模型可在任意位置给出预测，无需预先固定离散网格。
+DeepONet learns function-to-function mappings and consists of two sub-networks, branch and trunk: the branch receives discrete samples of the input function, the trunk receives the independent variable of the output function, and the inner product of their outputs yields the function value at that variable~\cite{lu2021deeponet}. Since the output is a continuous function of the independent variable, the model can produce predictions at arbitrary locations without pre-fixing a discrete grid.

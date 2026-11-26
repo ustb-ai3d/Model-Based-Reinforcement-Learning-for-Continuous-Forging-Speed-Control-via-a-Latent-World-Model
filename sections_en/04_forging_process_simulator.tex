@@ -1,99 +1,99 @@
 \section{Forging World Model}
 \label{sec:world_model}
 
-锻造变形序列的几何与多物理场随变形历程连续演化。为以低维隐状态联合承载几何与温度、等效应力、损伤等信息，并支持连续时间的自回归推演，本文构建“编码器—隐动力学—解码器”（Encoder--Latent-Dynamics--Decoder）框架的锻造世界模型：编码器 $E:\mathbb{R}^{N\times 6}\to\mathbb{R}^{d}$ 将第 $k$ 步点云 $X_k\in\mathbb{R}^{N\times 6}$ 映射为隐状态 $c_k=E(X_k)\in\mathbb{R}^{d}$，作为该步工件（几何与多物理场）的紧凑快照；隐动力学模型 $g:\mathbb{R}^{d}\times\mathbb{R}\to\mathbb{R}^{d}$ 以下压速度曲线为条件，在增广空间中建模隐状态的连续演化；解码器 $\mathrm{Dec}$ 由隐状态重建点云 $\hat{X}_k=\mathrm{Dec}(c_k)\in\mathbb{R}^{N\times 6}$。由此，世界模型同时具备重建与预测两种能力：前者保证隐状态可高保真还原为几何—多物理场点云，后者保证其可沿工艺参数自回归推演。世界模型的总体框架如图~\ref{fig:world_model} 所示。
+The geometry and multi-physics fields of the forging deformation sequence evolve continuously along the deformation history. To jointly carry geometry together with temperature, von Mises stress, and damage in a low-dimensional latent state and to support continuous-time autoregressive propagation, this work constructs a forging world model in the Encoder--Latent Dynamics--Decoder architecture: the encoder $E:\mathbb{R}^{N\times 6}\to\mathbb{R}^{d}$ maps the point cloud $X_k\in\mathbb{R}^{N\times 6}$ of step $k$ to a latent state $c_k=E(X_k)\in\mathbb{R}^{d}$, serving as a compact snapshot of the workpiece (geometry and multi-physics fields) at that step; the latent dynamics model $g:\mathbb{R}^{d}\times\mathbb{R}\to\mathbb{R}^{d}$ models the continuous evolution of the latent state in an augmented space, conditioned on the die speed profile; and the decoder $\mathrm{Dec}$ reconstructs the point cloud $\hat{X}_k=\mathrm{Dec}(c_k)\in\mathbb{R}^{N\times 6}$ from the latent state. The world model thus possesses both reconstruction and prediction capabilities: the former ensures that the latent state can be faithfully restored to the geometry--multi-physics point cloud, while the latter ensures that it can be propagated autoregressively along the process parameters. The overall framework of the world model is shown in Fig.~\ref{fig:world_model}.
 \begin{figure}[htbp]
-\centerline{\includegraphics[width=16cm]{world_model_framework_wide.pdf}}
-\caption{锻造世界模型的总体框架：编码器 $E$ 将点云映射为隐状态 $c_k$，隐动力学模型 $g$ 以速度曲线为条件沿行程积分推进隐状态，解码器 $\mathrm{Dec}$ 由隐状态重建几何—多物理场点云。}
+\centerline{\includegraphics[width=12cm]{world_model_framework_wide.pdf}}
+\caption{Overall framework of the forging world model: the encoder $E$ maps the point cloud to the latent state $c_k$, the latent dynamics model $g$ propagates the latent state along the stroke conditioned on the speed profile, and the decoder $\mathrm{Dec}$ reconstructs the geometry--multi-physics point cloud from the latent state.}
 \label{fig:world_model}
 \end{figure}
 
-\subsection{点云编码器}
-将第 $k$ 步点云记为 $X_k=\{[\,p_i;\ h_i\,]\}_{i=1}^{N}\in\mathbb{R}^{N\times 6}$，其中 $p_i\in\mathbb{R}^{3}$ 为绝对坐标，$h_i=(T_i,\sigma_i,D_i)\in\mathbb{R}^{3}$ 为该点的温度、等效应力与损伤，与式~\ref{equ:pointcloud}~的定义一致。编码器基于 PointNet++ 的层级结构，以“采样—分组—局部聚合”逐级提取特征。
+\subsection{Point Cloud Encoder}
+Denote the point cloud of step $k$ as $X_k=\{[\,p_i;\ h_i\,]\}_{i=1}^{N}\in\mathbb{R}^{N\times 6}$, where $p_i\in\mathbb{R}^{3}$ is the absolute coordinate and $h_i=(T_i,\sigma_i,D_i)\in\mathbb{R}^{3}$ is the temperature, von Mises stress, and damage at that point, consistent with the definition in Eq.~\ref{equ:pointcloud}. The encoder builds on the hierarchical structure of PointNet++ and extracts features level by level through sampling--grouping--local aggregation.
 
-首先以最远点采样（FPS）按几何确定性地选取中心点。记已选中心点集合为 $S_{m-1}$（初值 $S_0$ 任取一点），则第 $m$ 个中心点为
+First, farthest point sampling (FPS) selects center points deterministically by geometry. Let $S_{m-1}$ denote the set of already selected centers (initialized with $S_0$ as an arbitrary point); the $m$-th center is
 \begin{equation}
 p_{m}=\arg\max_{p\in\{p_i\}}\ \min_{p'\in S_{m-1}}\big\|p-p'\big\|_{2},\qquad S_{m}=S_{m-1}\cup\{p_{m}\},
 \end{equation}
-即在剩余点中选取距已选集合最远者，其中 $p_i$ 为点 $i$ 的坐标，$S_{m}$ 为已选前 $m$ 个中心点的集合。该采样对点的输入次序不敏感。对任一中心点 $p_i$，以半径 $\delta$ 进行球查询得到其局部邻域
+i.e., the point farthest from the already selected set is chosen, where $p_i$ is the coordinate of point $i$ and $S_m$ is the set of the first $m$ selected centers. This sampling is insensitive to the input order of the points. For any center point $p_i$, a ball query with radius $\delta$ obtains its local neighborhood
 \begin{equation}
 \Omega_i=\{\,j:\ \|p_j-p_i\|_{2}\le \delta\,\},
 \end{equation}
-对邻域内各点应用共享 MLP，再逐通道最大池化，得到该中心点的局部特征
+A shared MLP is applied to each point in the neighborhood, followed by channel-wise max pooling, to obtain the local feature of the center point
 \begin{equation}
 f_i=\max_{j\in\Omega_i}\ \mathrm{MLP}\big([\,h_j;\ p_j-p_i\,]\big),
 \end{equation}
-其中 $f_i\in\mathbb{R}^{d_1}$ 为中心点 $i$ 的局部特征（$d_1$ 为首级特征维度），$p_j-p_i\in\mathbb{R}^{3}$ 为邻域点 $j$ 相对中心点的坐标，$h_j\in\mathbb{R}^{3}$ 为点 $j$ 的物理场特征（首层）。重复上述“采样—分组—聚合”共 $n_{\text{SA}}$ 级，感受野由局部逐级扩展至全局。
+where $f_i\in\mathbb{R}^{d_1}$ is the local feature of center $i$ ($d_1$ is the first-level feature dimension), $p_j-p_i\in\mathbb{R}^{3}$ is the coordinate of neighbor $j$ relative to the center, and $h_j\in\mathbb{R}^{3}$ is the physical-field feature of point $j$ (first layer). Repeating the above sampling--grouping--aggregation for $n_{\text{SA}}$ levels expands the receptive field from local to global.
 
-最后对末级特征做全局最大池化并经 MLP 映射，得到承载整件工件状态的低维隐状态：
+Finally, global max pooling is applied to the last-level features followed by an MLP mapping, yielding the low-dimensional latent state that carries the state of the entire workpiece:
 \begin{equation}
 c_k=\mathrm{MLP}\Big(\max_{i} f_i^{(n_{\text{SA}})}\Big)\in\mathbb{R}^{d} .
 \end{equation}
-其中 $f_i^{(n_{\text{SA}})}$ 为第 $n_{\text{SA}}$ 级（末级）输出的中心点特征，$\max_i$ 表示对全部中心点取逐通道最大值，$d$ 为隐状态维度。由于采样与分组仅依赖几何距离、且以对称的最大池化汇聚邻域信息，编码器对点的输入次序具有置换不变性，即对点的任意置换 $\Pi$ 有 $E(\Pi(X_k))=E(X_k)$。
+where $f_i^{(n_{\text{SA}})}$ is the center-point feature output by the $n_{\text{SA}}$-th (last) level, $\max_i$ denotes channel-wise max over all center points, and $d$ is the latent-state dimension. Since sampling and grouping depend only on geometric distances and the neighborhood information is aggregated by symmetric max pooling, the encoder is permutation-invariant with respect to the input order of points, i.e., $E(\Pi(X_k))=E(X_k)$ for any permutation $\Pi$.
 
-\subsection{隐动力学模型}
-隐动力学模型的条件输入为下压速度曲线 $v_y(t)$，可为任意连续曲线；训练数据中的曲线由低维参数化采样生成，涵盖匀速、先快后慢、先慢后快等多种形态。速度取值经标准化后与隐状态一同输入待学习的向量场。
+\subsection{Latent Dynamics Model}
+The conditional input of the latent dynamics model is the die speed profile $v_y(t)$, which can be any continuous curve; the curves in the training data are generated by low-dimensional parameterized sampling, covering constant-speed, fast-then-slow, slow-then-fast, and other shapes. The speed value is normalized and fed into the vector field to be learned together with the latent state.
 
-在此基础上，隐动力学模型在“物理时间—隐状态”增广空间中建模隐状态的连续演化：以行程 $s$（压机下压位移）为积分变量，由 $ds=v_y(t)\,dt$ 得
+On this basis, the latent dynamics model describes the continuous evolution of the latent state in the augmented ``physical-time--latent-state'' space: taking the stroke $s$ (the downward displacement of the press) as the integration variable, from $ds=v_y(t)\,dt$ we have
 \begin{equation}
 \frac{dc}{ds}=g\big(c,\,v_y(t)\big),\qquad \frac{dt}{ds}=\frac{1}{v_y(t)} ,
 \end{equation}
-其中 $c\in\mathbb{R}^{d}$ 为隐状态，$g:\mathbb{R}^{d}\times\mathbb{R}\to\mathbb{R}^{d}$ 为待学习的向量场（由 MLP 参数化），$t$、$s$ 分别为物理时间与行程。可见隐动力学模型沿行程 $s$ 逐步积分，而速度曲线以物理时间 $t$ 为自变量给出；二者由 $ds=v_y(t)\,dt$（等价 $dt/ds=1/v_y(t)$）相互换算，物理时间 $t$ 作为增广状态随积分同步推进，即积分步长取位移、速度以时间为横轴表示。速度曲线由此作为物理先验被嵌入时间尺度变换，使预测的时间尺度与真实工艺一致。相邻两步的隐状态通过对区间积分得到：
+where $c\in\mathbb{R}^{d}$ is the latent state, $g:\mathbb{R}^{d}\times\mathbb{R}\to\mathbb{R}^{d}$ is the vector field to be learned (parameterized by an MLP), and $t$ and $s$ are the physical time and stroke, respectively. The latent dynamics model thus integrates step by step along the stroke $s$, while the speed profile is given with the physical time $t$ as the independent variable; the two are converted through $ds=v_y(t)\,dt$ (equivalently $dt/ds=1/v_y(t)$), and the physical time $t$ advances synchronously with the integration as an augmented state, i.e., the integration step is taken in displacement while the speed is expressed on the time axis. The speed profile is thereby embedded as a physical prior into the time-scale transformation, aligning the prediction time scale with the true process. The latent state of two adjacent steps is obtained by integrating over the interval:
 \begin{equation}
 c_{k+1}=c_k+\int_{s_k}^{s_{k+1}} g\big(c(s),\,v_y(t(s))\big)\,ds ,
 \end{equation}
-其中 $s_k$ 与 $s_{k+1}$ 为相邻两步对应的行程，$c(s)$ 为沿行程演化的隐状态。该微分方程以四阶 Runge--Kutta 法求解，并配合伴随法进行反向传播。隐动力学模型以行程为积分变量、速度曲线解析给出，积分步长不必与训练步一致：训练用细步长约束局部动力学，推理用粗步长覆盖整条历程，二者共享同一向量场。
+where $s_k$ and $s_{k+1}$ are the strokes corresponding to two adjacent steps, and $c(s)$ is the latent state evolving along the stroke. This differential equation is solved by the fourth-order Runge--Kutta method, with backpropagation performed via the adjoint method. Because the latent dynamics model integrates over the stroke with the speed profile given analytically, the integration step need not coincide with the training step: training uses a fine step to constrain the local dynamics, while inference uses a coarse step to cover the entire history, with both sharing the same vector field.
 
-\subsection{几何—物理场联合解码器}
-解码器采用 DeepONet 结构，学习一个由隐状态到“位移—物理场”映射的算子 $\mathrm{Dec}$：branch 网络以隐状态 $c_k$ 为输入，trunk 网络以参考坐标 $r_i$ 为查询点，经张量融合后由共享输出层同时给出该点的位移与物理场。解码器的整体结构如图~\ref{fig:decoder} 所示。以查询坐标作为 trunk 输入，使解码器可对任意参考点查询、并在各点间共享空间基，从而以单一网络刻画整个点云上的场分布。记首步几何为 $R=\{r_i\}_{i=1}^{N}$（$r_i\in\mathbb{R}^{3}$ 为第 $i$ 个参考点的坐标），即该样本的首步点云（记为 $X_0$）、工件的初始几何；它在训练与推理阶段均为已知输入，并随初始工况逐样本变化。解码器对每个参考点的逐点作用为
+\subsection{Joint Geometry--Physics Decoder}
+The decoder adopts a DeepONet structure and learns an operator $\mathrm{Dec}$ mapping the latent state to a displacement--physics-field map: the branch network takes the latent state $c_k$ as input, the trunk network takes the reference coordinate $r_i$ as the query point, and after tensor fusion a shared output layer jointly produces the displacement and physical fields at that point. The overall structure of the decoder is shown in Fig.~\ref{fig:decoder}. Taking the query coordinate as the trunk input enables the decoder to query arbitrary reference points and share a spatial basis across points, so that a single network characterizes the field distribution over the entire point cloud. Let the first-step geometry be $R=\{r_i\}_{i=1}^{N}$ ($r_i\in\mathbb{R}^{3}$ is the coordinate of the $i$-th reference point), i.e., the first-step point cloud of this sample (denoted $X_0$), the initial geometry of the workpiece; it is a known input in both training and inference and varies sample by sample with the initial condition. The point-wise action of the decoder on each reference point is
 \begin{equation}
 \begin{aligned}
 \hat{y}_i&=\big(\hat{T}_i,\ \hat{\sigma}_i,\ \hat{D}_i\big),\\
 \big[\,\Delta p_i;\ \hat{y}_i\,\big]&=W\big(f_{b}(c_k)\otimes f_{t}(r_i)\big)+b,
 \end{aligned}
 \end{equation}
-其中 $f_{b}:\mathbb{R}^{d}\to\mathbb{R}^{P\times C}$、$f_{t}:\mathbb{R}^{3}\to\mathbb{R}^{P}$ 分别为 branch 网络与 trunk 网络，$P$ 为空间基个数，$C=6$ 为输出通道数（3 维位移与 3 个物理场）；$W\in\mathbb{R}^{C\times(PC)}$、$b\in\mathbb{R}^{C}$ 为输出层的权重与偏置；$\Delta p_i\in\mathbb{R}^{3}$ 为参考点 $i$ 的位移预测，$\hat{T}_i$、$\hat{\sigma}_i$、$\hat{D}_i$ 分别为温度、等效应力与损伤的预测值。记 $\mathrm{Dec}(c_k)$ 为由 $c_k$ 生成的完整点云，其对任一参考点 $r_i$ 的逐点作用即为上式；位移与物理场由同一隐状态经共享输出层耦合输出，在物理上相互约束。
+where $f_{b}:\mathbb{R}^{d}\to\mathbb{R}^{P\times C}$ and $f_{t}:\mathbb{R}^{3}\to\mathbb{R}^{P}$ are the branch and trunk networks, $P$ is the number of spatial bases, and $C=6$ is the number of output channels (3 displacement dimensions and 3 physical fields); $W\in\mathbb{R}^{C\times(PC)}$ and $b\in\mathbb{R}^{C}$ are the weight and bias of the output layer; $\Delta p_i\in\mathbb{R}^{3}$ is the displacement prediction of reference point $i$, and $\hat{T}_i$, $\hat{\sigma}_i$, $\hat{D}_i$ are the predicted temperature, von Mises stress, and damage, respectively. Let $\mathrm{Dec}(c_k)$ denote the complete point cloud generated from $c_k$; its point-wise action on any reference point $r_i$ is exactly the above equation. The displacement and physical fields are coupled from the same latent state through a shared output layer, constraining each other physically.
 
 \begin{figure}[htbp]
-\centerline{\includegraphics[width=16cm]{decoder-wide.pdf}}
-\caption{解码器架构示意图。}
+\centerline{\includegraphics[width=12cm]{decoder-wide.pdf}}
+\caption{Schematic of the decoder architecture.}
 \label{fig:decoder}
 \end{figure}
 
-\textbf{几何。} 以首步几何 $R$ 为硬基线，网络仅预测相对位移：
+\textbf{Geometry.} With the first-step geometry $R$ as a hard baseline, the network predicts only the relative displacement:
 \begin{equation}
 \hat{p}_i=r_i+\Delta p_i .
 \end{equation}
-零变形时 $\Delta p_i\approx0$，即 $\hat{p}_i\approx r_i$；这一残差形式把“重建几何”转化为“学习位移”，既降低了学习难度，又保证初始形状被精确还原。
+When there is no deformation, $\Delta p_i\approx0$, i.e., $\hat{p}_i\approx r_i$; this residual form converts ``reconstructing the geometry'' into ``learning the displacement'', which both reduces the learning difficulty and ensures that the initial shape is exactly restored.
 
-\textbf{物理场。} 以同一参考坐标 $r_i$ 为查询点回归三个物理场。由于查询坐标在训练与推理时恒取首步几何 $R$ 中对应的参考点 $r_i$（索引即物质点身份），两阶段的输入分布保持一致，避免了几何演变带来的分布漂移。据此，几何与物理场在同一隐状态下逐点联合输出重建点云：
+\textbf{Physical fields.} The three physical fields are regressed using the same reference coordinate $r_i$ as the query point. Since the query coordinate always takes the reference point $r_i$ in the first-step geometry $R$ (the index is the material-point identity) during both training and inference, the input distribution of the two stages remains consistent, avoiding distribution shift caused by geometric evolution. Accordingly, geometry and physical fields are jointly output point by point from the same latent state to reconstruct the point cloud:
 \begin{equation}
 \hat{X}_k=\big\{\,(\hat{p}_i,\ \hat{y}_i)\,\big\}_{i=1}^{N},
 \end{equation}
-从而得到 $\hat{X}_k\in\mathbb{R}^{N\times 6}$，在同一隐状态下联合重建形状与多物理场，强化几何与场的物理一致性。
+yielding $\hat{X}_k\in\mathbb{R}^{N\times 6}$, which jointly reconstructs the shape and multi-physics fields from the same latent state and reinforces the physical consistency between geometry and fields.
 
-\subsection{训练目标}
-世界模型采用两阶段训练。第一阶段训练编码器与解码器，仅以重构损失优化二者，使隐状态可重建为几何—多物理场点云；第二阶段训练隐动力学模型，以隐空间预测损失与多步 rollout 损失优化其向量场，使隐状态可沿下压速度曲线自回归推演。
+\subsection{Training Objective}
+The world model is trained in two stages. In the first stage, the encoder and decoder are trained with only the reconstruction loss, so that the latent state can be reconstructed into the geometry--multi-physics point cloud. In the second stage, the latent dynamics model is trained with a latent-space prediction loss and a multi-step rollout loss to optimize its vector field, so that the latent state can be propagated autoregressively along the die speed profile.
 
-第一阶段的重构损失为解码器由真实隐状态重建点云的逐点误差，对各步求和、在批上求均值（$\mathbb{E}[\cdot]$ 表示对批取期望）：
+The reconstruction loss of the first stage is the point-wise error of the point cloud reconstructed by the decoder from the true latent state, summed over all steps and averaged over the batch ($\mathbb{E}[\cdot]$ denotes the expectation over the batch):
 \begin{equation}
 \mathcal{L}_{\text{recon}}=\mathbb{E}\Big[\sum_{k}\big\|\mathrm{Dec}(c_k)-X_k\big\|^{2}\Big] .
 \end{equation}
 
-第二阶段的隐空间预测损失为预测隐状态与真实编码之间的均方误差，其中 $\hat{c}_{k+1}$ 为隐动力学模型预测的下一步隐状态，$c_{k+1}=E(X_{k+1})$ 为对应的真实编码，$\mathrm{sg}(\cdot)$ 为停止梯度算子（切断梯度回传至编码器）：
+The latent-space prediction loss of the second stage is the mean squared error between the predicted latent state and the true encoding, where $\hat{c}_{k+1}$ is the next latent state predicted by the latent dynamics model, $c_{k+1}=E(X_{k+1})$ is the corresponding true encoding, and $\mathrm{sg}(\cdot)$ is the stop-gradient operator (cutting off gradient backpropagation to the encoder):
 \begin{equation}
 \mathcal{L}_{\text{pred}}=\mathbb{E}\Big[\big\|\hat{c}_{k+1}-\mathrm{sg}(c_{k+1})\big\|^{2}\Big] .
 \end{equation}
 
-多步 rollout 损失用于增强长时预测稳定性，并以权重 $\beta_M$ 与预测损失加权求和：从第 $k$ 步出发自回归展开 $M$ 步，每一步以上一步预测的隐状态推进、而非使用真实编码，并对展开路径上每一步的预测隐状态与该步真实编码计算损失：
+The multi-step rollout loss enhances long-horizon prediction stability and is combined with the prediction loss via weight $\beta_M$: starting from step $k$, an $M$-step autoregressive rollout is performed, where each step advances from the latent state predicted at the previous step rather than using the true encoding, and the loss is computed between the predicted latent state at each step on the rollout path and the true encoding of that step:
 \begin{equation}
 \mathcal{L}_{\text{rollout}}=\mathbb{E}\Big[\sum_{k}\sum_{j=1}^{M}\big\|\hat{c}_{k}^{(j)}-\mathrm{sg}(c_{k+j})\big\|^{2}\Big],
 \end{equation}
-其中自回归展开为
+where the autoregressive rollout is
 \begin{equation}
 \begin{aligned}
 \hat{c}_{k}^{(0)} &= \mathrm{sg}(c_k), \\
 \hat{c}_{k}^{(j+1)} &= \hat{c}_{k}^{(j)}+\int_{s_{k+j}}^{s_{k+j+1}} g\big(\hat{c}_{k}^{(j)},\,v_y(t(s))\big)\,ds ,
 \end{aligned}
 \end{equation}
-$\hat{c}_{k}^{(j)}$ 为自第 $k$ 步展开 $j$ 步后的预测隐状态，$c_{k+j}=E(X_{k+j})$ 为对应步的真实编码；展开路径上每一步的预测均直接受该步真实编码的监督。
+$\hat{c}_{k}^{(j)}$ is the predicted latent state after rolling out $j$ steps from step $k$, and $c_{k+j}=E(X_{k+j})$ is the true encoding of the corresponding step; the prediction at each step on the rollout path is directly supervised by the true encoding of that step.
