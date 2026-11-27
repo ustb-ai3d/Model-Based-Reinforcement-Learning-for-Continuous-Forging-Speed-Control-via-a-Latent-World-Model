@@ -125,7 +125,7 @@ PSO        & 108.72$\pm$11.55 & 2580$\pm$1370 & 0.00 \\
 \label{tab:Method Comparison}
 \end{table}
 
-PSO 的决策耗时主要来自反复的适应度评估。图~\ref{fig:pso_objective} 给出其目标函数的收敛过程：PSO 需约 0.9 s 才能优化至与决策网络输出相当的目标函数值，完全收敛则需 2580 ms；而决策网络通过一次前向推理直接给出速度参数、无需迭代搜索。因此，尽管决策网络所得并非 PSO 的最优解，其在时间效率上显著占优。
+PSO 的决策耗时主要来自反复的适应度评估。图~\ref{fig:pso_objective} 给出其目标函数的收敛过程：PSO 需约 0.9 s 才能优化至与决策网络输出相当的目标函数值，完全收敛则需 2580 ms；而决策网络通过一次前向推理直接给出速度参数、无需迭代搜索。因此，决策网络在快速获得高质量控制方案方面具有时间效率优势。
 
 \begin{figure}[H]
 \centerline{\includegraphics[width=12cm]{PSO-Objective_linear.pdf}}
