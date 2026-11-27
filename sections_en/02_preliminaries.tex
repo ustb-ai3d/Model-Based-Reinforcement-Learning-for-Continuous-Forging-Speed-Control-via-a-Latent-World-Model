@@ -1,0 +1,17 @@
+\section{Preliminaries}
+
+\subsection{Point Cloud Representation}
+A point cloud represents the workpiece surface as a set of three-dimensional points, where each point carries its coordinates together with physical quantities such as temperature and stress, denoted $X=\{x_i\}_{i=1}^{N}$ with $x_i\in\mathbb{R}^{C}$. A point cloud is an unordered set---the same shape corresponds to $N!$ orderings---so models operating on point clouds must be permutation-invariant~\cite{qi2017pointnet}. Unlike regular grids, a point cloud is free of topological and resolution constraints and can represent arbitrary geometries directly, making it suitable for carrying the geometry and fields output by finite-element simulations.
+
+\subsection{Continuous-Time Latent State Modeling}
+A Neural ODE describes the continuous evolution of a state via a parameterized vector field: given the initial value $c(s_0)=c_0$, the state at any position is obtained by integrating
+\begin{equation}
+\frac{\mathrm{d}c}{\mathrm{d}s}=g(c,s;\theta)
+\end{equation}
+~\cite{chen2018neural}. Compared with discrete-time recurrence, it characterizes the dynamics with a continuous independent variable, can be evaluated at arbitrary times, and supports backpropagation via the adjoint method. Such models have been applied to continuous-time modeling of industrial processes~\cite{yuan2022autonomous, yuan2023ode, yuan2022differential}.
+
+\subsection{World Model}
+A world model compresses high-dimensional observations into a low-dimensional latent state and learns the evolution of the state under actions in the latent space, thereby predicting the future without interacting with the real environment. A typical structure consists of an encoder, a latent dynamics model, and a decoder: the encoder maps observations to the latent state, the latent dynamics model predicts the latent state at the next time, and the decoder reconstructs observations from the latent state. Prediction is performed in the low-dimensional space, whose cost is far lower than reasoning directly over high-dimensional observations.
+
+\subsection{DeepONet}
+DeepONet learns function-to-function mappings and consists of two sub-networks, branch and trunk: the branch receives discrete samples of the input function, the trunk receives the independent variable of the output function, and the inner product of their outputs yields the function value at that variable~\cite{lu2021deeponet}. Since the output is a continuous function of the independent variable, the model can produce predictions at arbitrary locations without pre-fixing a discrete grid.

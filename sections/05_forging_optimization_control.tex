@@ -1,0 +1,104 @@
+\section{Forging Optimization Control}
+\label{sec:control}
+
+本节在第 \ref{sec:world_model} 节世界模型的基础上构建连续速度曲线决策器。以世界模型为可推演环境，决策器以隐状态为条件、在世界模型内部逐步决策，生成整条连续速度曲线，再一次性下发设备；训练全程在世界模型中进行，无需与真实设备交互，整体流程如图~\ref{fig:control} 所示。
+
+\begin{figure}[htbp]
+\centerline{\includegraphics[width=16cm]{control-1-wide.pdf}}
+\caption{决策器训练示意图。}
+\label{fig:control}
+\end{figure}
+
+\subsection{世界模型内的决策问题建模}
+将下压速度决策建模为带安全约束的有限时域马尔可夫决策过程（CMDP）~\cite{altman2021constrained}。该过程仅在世界模型内部定义，用于离线训练策略：状态转移由世界模型给出，训练全程不与设备交互；策略训练完成后，整条速度曲线一次性下发执行。该过程由状态、动作、转移、奖励与代价五要素定义，求解目标是在满足累积代价约束的前提下最大化累积奖励。各要素定义如下。
+
+\textbf{状态} 以世界模型内部隐状态 $c_k\in\mathbb{R}^{d}$ 为状态，策略与价值函数均以隐状态 $c_k$ 为输入；解码得到的几何—多物理场点云（即第~\ref{sec:world_model}~节的重建点云 $\hat{X}_k$）$o_k=\mathrm{Dec}(c_k)\in\mathbb{R}^{N\times 6}$（$o_k$ 为 $c_k$ 的确定性函数）仅在训练时用于计算奖励与代价，不参与决策。
+
+\textbf{动作} 决策器沿行程逐步决定下压速度：第 $k$ 步在累计行程（位移）$s_k$ 处输出该步速度 $v_k=a_k\in\mathbb{R}$，其取值受设备能力约束，$v_k\in[v_{\min},v_{\max}]$。各步速度构成以行程为自变量的速度曲线 $v(s)$；再由 $dt=ds/v(s)$ 将自变量由位移 $s$ 换算为时间 $t$，得到以时间为自变量的速度曲线
+\begin{equation}
+v_y(t)=v\big(s(t)\big),
+\end{equation}
+其中 $s(t)$ 为累计行程随时间的变化，由上式积分得到、单调递增。该曲线 $v_y(t)$ 即压机可直接执行的速度–时间指令，也是锻造时间等效率指标的度量基准。
+
+\textbf{转移} $c_{k+1}=c_k+\int_{s_k}^{s_{k+1}}g\big(c,v_y(t)\big)\,ds$：在第 $k$ 段行程 $[s_k,s_{k+1}]$ 上按 $v(s)$ 沿行程积分推进隐状态。
+
+\textbf{行程约束} 总行程满足
+\begin{equation}
+\int_{0}^{t_f}v_y(t)\,dt=\Delta h .
+\end{equation}
+各段耗时由该步速度决定，$\Delta t_k=\int_{s_k}^{s_{k+1}}ds/v(s)$：速度越大，该段耗时越短。
+
+\textbf{奖励} 逐步权衡效率与质量。第 $k$ 步由世界模型解码得到应力场 $\{\hat{\sigma}_i\}_{i=1}^{N}$，将其降序排列，前 $m$ 个值记为 $\hat{\sigma}_{(1)}\ge\hat{\sigma}_{(2)}\ge\cdots\ge\hat{\sigma}_{(m)}$，据此定义
+\begin{equation}
+\bar{\sigma}_k=\frac{1}{m}\sum_{j=1}^{m}\hat{\sigma}_{(j)},\qquad
+u_k=\frac{\mathrm{std}(\hat{\sigma}_i)}{\mathrm{mean}(\hat{\sigma}_i)},
+\end{equation}
+其中 $\bar{\sigma}_k$ 表征场应力水平的大小，$u_k$ 为应力场的变异系数，表征应力集中程度。奖励定义为
+\begin{equation}
+r_k=w_1 e^{-\Delta t_k}-w_2\,\bar{\sigma}_k-w_3\,u_k,
+\end{equation}
+其中 $\Delta t_k$ 为第 $k$ 段耗时，$w_1$、$w_2$、$w_3$ 为权重系数。应力水平越高、分布越不均匀，损伤演化越快；奖励对这两项施加惩罚，引导决策器在缩短锻造时间的同时将工件维持在低而均匀的应力状态，与损伤约束形成软引导与硬约束的互补。
+
+\textbf{代价} 刻画逐步损伤越限：
+\begin{equation}
+d_k=\mathrm{relu}(D_k-D_{\text{cr}}),
+\end{equation}
+其中 $D_k$ 为第 $k$ 步工件的最大损伤累积值，即该步损伤场的最大值，对应式~\ref{equ:model}~中 $D(t)$ 在第 $k$ 步的取值；$D_{\text{cr}}$ 为临界损伤值，$d_k=0$ 表示该步未越限。
+
+\textbf{优化目标} 在每一步均满足损伤约束的前提下最大化累积奖励：
+\begin{equation}
+\max_{\psi}\ \mathbb{E}\Big[\sum_{k}\gamma^{k} r_k\Big]\quad \text{s.t.}\quad \mathbb{E}[d_k]\le 0,\quad \forall k,
+\end{equation}
+其中 $\gamma$ 为折扣因子。约束是逐步的，即要求每一步的损伤累积值均不越限（$D_k\le D_{\text{cr}}$）。
+
+\subsection{动作的连续表示}
+下压速度以行程为自变量连续给出、沿行程可导，因而速度曲线 $v_y(t)$ 光滑、无加速度突跳，可直接代入隐动力学模型的沿行程积分 $\frac{dc}{ds}=g(c,\,v_y(t))$；单步速度的变化也由此沿行程平滑分摊，不产生高频抖动。行程等式由位移域定义自动成立，速度上下界与损伤约束仅限定可行域、不压缩决策的自由度。
+% 【实验章待补：动作参数化消融——样条插值 vs 折线直连】
+
+\subsection{决策器与优化算法}
+决策器为以隐状态为条件的高斯策略，即在每一步输出一个关于速度控制量的正态分布：
+\begin{equation}
+\begin{aligned}
+\pi_{\psi}(a_k\mid c_k)&=\mathcal{N}\big(a_k;\ \mu_{\psi}(c_k),\ \sigma_{\psi}^{2}(c_k)\big),\\
+a_k&=\mu_{\psi}(c_k)+\sigma_{\psi}(c_k)\odot\varepsilon,\quad \varepsilon\sim\mathcal{N}(0,I),
+\end{aligned}
+\end{equation}
+其中 $\mu_{\psi}(c_k)\in\mathbb{R}$、$\sigma_{\psi}(c_k)\in\mathbb{R}_{>0}$ 为策略网络 $\pi_{\psi}:\mathbb{R}^{d}\to\mathbb{R}^{2}$ 输出的均值与标准差，$\odot$ 为逐维相乘，$a_k=v_k\in\mathbb{R}$ 为第 $k$ 步的速度控制量，方差取对角形式；求解（推理）阶段取均值 $\mu_{\psi}(c_k)$ 作为确定性输出（策略网络为作用于隐状态的小型 MLP）。
+
+采用离线安全强化学习求解该 CMDP：以拉格朗日松弛将逐步约束转化为无约束形式，定义约束感知的单步奖励
+\begin{equation}
+\tilde r_k=r_k-\lambda\,d_k,
+\end{equation}
+其中 $r_k$ 为第 $k$ 步奖励，$d_k$ 为第 $k$ 步损伤越限量，$\lambda$ 为对偶变量。构造拉格朗日函数
+\begin{equation}
+\mathcal{L}(\psi,\lambda)=\mathbb{E}\Big[\sum_{k}\gamma^{k}\ln \pi_{\psi}(a_k\mid c_k)\cdot A(c_k,a_k)\Big],
+\end{equation}
+其中逐步优势函数为
+\begin{equation}
+A(c_k,a_k)=\tilde r_k+\gamma\hat{V}(c_{k+1})-\hat{V}(c_k),
+\end{equation}
+$\hat{V}(c_k)$ 为价值估计（critic），其网络参数记为 $\phi$。价值网络以最小化一步时序差分（TD）误差训练，目标侧停止梯度：
+\begin{equation}
+\mathcal{L}_{V}(\phi)=\mathbb{E}\Big[\big(\hat{V}(c_k)-\big[\tilde r_k+\gamma\,\mathrm{sg}(\hat{V}(c_{k+1}))\big]\big)^{2}\Big],
+\end{equation}
+其中 $\mathrm{sg}(\cdot)$ 为停止梯度算子。为鼓励探索并防止过早收敛，加入逐步熵正则项。此外，下压速度“先慢后快”的形态具有明确的损伤控制动机~\cite{bambach2018towards}：变形初期接触冲击与局部应力集中使损伤萌生最敏感，低速可抑制损伤累积，待材料充分软化后再加速以缩短高温停留。本文不沿用该工作将先验硬编码进参数化曲线族，而是以单调正则项将其降为软偏好：
+\begin{equation}
+\mathcal{R}_{\text{mono}}(\psi)=\mathbb{E}\Big[\sum_{k}\gamma^{k}\,\max\big(0,\,v_k-v_{k+1}\big)\Big],
+\end{equation}
+该正则只在 $v_k>v_{k+1}$（本步快于下一步，即减速）时取正、其余为 0，因而只惩罚减速段、诱导速度单调不减；其对加速幅度无偏好，故不限制策略表示任意速度曲线的能力。将熵正则与单调正则一并并入目标函数，得到
+\begin{equation}
+\begin{aligned}
+\mathcal{J}(\psi,\lambda)=&\,\mathcal{L}(\psi,\lambda)+\eta\,\mathbb{E}\Big[\sum_{k}\gamma^{k}H\big[\pi_{\psi}(\cdot\mid c_k)\big]\Big]\\
+&-\lambda_m\,\mathcal{R}_{\text{mono}}(\psi),
+\end{aligned}
+\end{equation}
+其中 $\eta$、$\lambda_m$ 分别为熵系数与单调正则强度，$H[\cdot]$ 为策略熵。
+
+优化采用对偶梯度上升：先固定 $\lambda$、按 $\psi$ 最大化 $\mathcal{J}$ 更新策略参数；再固定 $\psi$、依约束违反程度更新对偶变量
+\begin{equation}
+\lambda\leftarrow\max\big(0,\ \lambda+\alpha_{\lambda}\bar{d}\big),\qquad \bar{d}=\max_{k}\,(D_k-D_{\text{cr}}),
+\end{equation}
+其中 $\alpha_{\lambda}$ 为对偶步长，$\bar{d}$ 为整条轨迹上各步损伤与临界值之差的最大值（带符号）。当存在越限步（$\bar{d}>0$）时 $\lambda$ 增大以加强惩罚；各步均低于临界值（$\bar{d}<0$）时 $\lambda$ 减小以放松约束。策略训练在世界模型内进行闭环 rollout 收集经验：每一步以隐状态 $c_k$ 为条件输出 $v_k$，状态由世界模型自回归推进 $c_{k+1}=c_k+\int_{s_k}^{s_{k+1}}g(c,v_y(t))\,ds$，与求解阶段同构；全程离线，无需与真实设备交互。训练采用混合经验回放缓冲，其中的转移样本来自有限元仿真数据集 $\mathcal{B}$ 与世界模型推演生成的数据；$\rho$ 为仿真数据在批次中所占的比例，两类样本按该比例混合后共同参与更新。
+
+\subsection{决策求解与执行}
+求解阶段在世界模型内逐步 rollout 决策：第 $k$ 步以隐状态 $c_k$ 为条件输出 $v_k$；得到各步速度后拼成整条曲线 $v_y(t)$。执行阶段将该曲线一次性下发设备，设备不做在线反馈。与单次输出参数化决策（单次输出 $\theta$、前馈生成整条曲线）相比，本文的逐步决策可利用损伤、应力等演化信息，适应不同的初始温度场。

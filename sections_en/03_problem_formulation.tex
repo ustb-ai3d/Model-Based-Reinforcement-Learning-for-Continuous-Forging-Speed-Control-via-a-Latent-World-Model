@@ -1,0 +1,47 @@
+\section{Problem Formulation}
+
+\subsection{Forging Deformation Sequence and State Representation}
+During aluminum alloy forging, the workpiece undergoes plastic deformation under compression between the upper and lower dies, and its geometry together with physical quantities such as temperature, von Mises stress, and damage evolve synchronously and continuously along the deformation history. The workpiece state at step $k$ of the forging process is represented by an unordered point cloud $X_k \in \mathbb{R}^{N \times 6}$, where $N$ is the number of sampled points and each point consists of the absolute coordinate $p_i=(x_i,y_i,z_i)$ and three physical fields---temperature $T_i$, von Mises stress $\sigma_i$, and damage $D_i$:
+\begin{equation}
+X_k = \{\,(p_i,\; T_i,\; \sigma_i,\; D_i)\,\}_{i=1}^{N}
+\label{equ:pointcloud}
+\end{equation}
+where the von Mises stress is composed from the six stress components by physical magnitude:
+\begin{equation}
+\begin{split}
+\sigma = \Big\{ &\tfrac{1}{2}\big[(\sigma_x-\sigma_y)^2+(\sigma_y-\sigma_z)^2 \\
+&+(\sigma_z-\sigma_x)^2\big]+3(\tau_{xy}^2+\tau_{yz}^2+\tau_{xz}^2)\Big\}^{1/2}
+\end{split}
+\end{equation}
+The temperature varies gradually and continuously with heat conduction and deformation heating, whereas the von Mises stress and damage depend not only on the current geometry but also on the entire deformation history (path-dependent). The forging state is therefore a high-dimensional, unordered point-cloud sequence with strong geometry--multi-physics coupling, evolving continuously in time.
+
+\subsection{Control Variable and Physical Constraints}
+The die speed profile $v_y(t)$ is the sole control variable, which affects the stress field and damage evolution through the strain rate: an excessively high speed induces strain-rate hardening and stress concentration, while an excessively low speed prolongs the forging time and aggravates the temperature drop and deformation resistance of the workpiece.
+
+The press stroke $\Delta h$ is fixed during forging, requiring the integral of the speed profile over the entire forging time $t_f$ to be constant:
+\begin{equation}
+\int_{0}^{t_f} v_y(t)\,dt = \Delta h = \text{const}
+\end{equation}
+Forging quality is constrained by a damage criterion. Based on the normalized Cockcroft--Latham criterion,
+\begin{equation}
+D(t) = \int_0^t \frac{\max(\sigma_1(\tau),0)}{\bar{\sigma}(\tau)}\,\dot{\bar{\varepsilon}}(\tau)\,d\tau
+\end{equation}
+let $D_{\text{cr}}$ denote the critical damage value, beyond which the accumulated damage is regarded as cracking. Forging requires that the damage never exceed this critical value throughout the process, i.e., $D(t) < D_{\text{cr}},\ \forall t\in[0,t_f]$.
+
+\subsection{Problem Statement}
+Under the above physical process and constraints, the problem addressed in this work can be decomposed into two interrelated sub-problems.
+
+\textbf{Problem 1 (continuous evolution modeling)}: given the initial point cloud $X_0$ and the die speed profile $v_y(t)$, how to model the continuous evolution of the workpiece geometry and multi-physics fields---temperature, von Mises stress, and damage---along the deformation history, and obtain a compact, propagatable state representation, so that the model can both predict the state of future steps and reconstruct the geometry--multi-physics point cloud with high fidelity? The accuracy of this model directly determines the reliability of the subsequent decision-making, and its role is the surrogate environment required for speed decision-making.
+
+\textbf{Problem 2 (continuous speed-profile decision-making)}: under the fixed forging stroke and the damage constraint, how to determine the entire continuous speed profile $v_y(t)$ that minimizes the forging time $t_f$ while keeping the damage below the critical value $D_{\text{cr}}$ throughout the process?
+
+Combining the two sub-problems, the die-speed decision problem to be solved can be written in the following constrained optimization form:
+\begin{equation}
+\begin{gathered}
+\min\nolimits_{v_y(t)} \; t_f \\
+\text{s.t.} \quad \int_{0}^{t_f} v_y(t)\,dt = \Delta h \\
+D(t) < D_{\text{cr}}, \quad \forall t \in [0, t_f]
+\end{gathered}
+\label{equ:model}
+\end{equation}
+that is, under a fixed forging stroke, to find the optimal speed profile that balances production efficiency and forming quality.
