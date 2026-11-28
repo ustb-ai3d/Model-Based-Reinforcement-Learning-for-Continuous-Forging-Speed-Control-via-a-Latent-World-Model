@@ -85,7 +85,7 @@ c_{k+1}=c_k+\int_{s_k}^{s_{k+1}} g\big(c(s),\,v_y(t(s))\big)\,ds ,
 \mathcal{L}_{\text{pred}}=\mathbb{E}\Big[\big\|\hat{c}_{k+1}-\mathrm{sg}(c_{k+1})\big\|^{2}\Big] .
 \end{equation}
 
-多步 rollout 损失用于增强长时预测稳定性，并以权重 $\beta_M$ 与预测损失加权求和：从第 $k$ 步出发自回归展开 $M$ 步，每一步以上一步预测的隐状态推进、而非使用真实编码，并对展开路径上每一步的预测隐状态与该步真实编码计算损失：
+多步 rollout 损失用于增强长时预测稳定性，并以权重 $\beta_M$ 与预测损失加权求和：从第 $k$ 步出发自回归展开 $M$ 步，每一步以上一步预测的隐状态推进，并对展开路径上每一步的预测隐状态与该步真实编码计算损失：
 \begin{equation}
 \mathcal{L}_{\text{rollout}}=\mathbb{E}\Big[\sum_{k}\sum_{j=1}^{M}\big\|\hat{c}_{k}^{(j)}-\mathrm{sg}(c_{k+j})\big\|^{2}\Big],
 \end{equation}
